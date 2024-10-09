@@ -18,9 +18,15 @@ R function `analyze_pathway_volcano` creates customized volcano plots that highl
 
 The `analyze_pathway_volcano` function generates visually informative volcano plots that emphasize genes from a specified pathway, allowing for various customizations including significance thresholds, labeling methods, visual parameters, and plotting styles.
 
+### Example
+
+![alt text](https://github.com/tony-zhelonkin/R_GSEA_visualisations/blob/main/examples/analyzePathVolcano/ssDNA_DE_projection_clean.png?raw=true)https://github.com/tony-zhelonkin/R_GSEA_visualisations/blob/main/examples/analyzePathVolcano/ssDNA_DE_projection_clean.png?raw=true)
+
+
+
 ### Parameters
 
-- `pathway_name`: Name of the pathway to highlight
+- `pathway_name`: Name of the pathway to highlight. Must be equal to the DESCRIPTION of the pathway in the GSEA results
 - `gsea_results`: GSEA results object containing pathway information
 - `de_results`: Differential expression results data frame
 - `p_cutoff`: P-value cutoff for significance (default: 0.05)
