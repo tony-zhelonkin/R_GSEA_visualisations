@@ -20,7 +20,7 @@ The `analyze_pathway_volcano` function generates visually informative volcano pl
 
 ### Example
 
-![alt text](https://github.com/tony-zhelonkin/R_GSEA_visualisations/blob/main/examples/analyzePathVolcano/ssDNA_DE_projection_clean.png?raw=true)https://github.com/tony-zhelonkin/R_GSEA_visualisations/blob/main/examples/analyzePathVolcano/ssDNA_DE_projection_clean.png?raw=true)
+![alt text](https://github.com/tony-zhelonkin/R_GSEA_visualisations/blob/main/examples/analyzePathVolcano/ssDNA_DE_projection_clean.png?raw=true)
 
 
 
