@@ -6,7 +6,163 @@ The functions are:
 * custom_dotplot
 * custom_dotplot_comparison
 * gsea_comparison_plot
-* analyze_pathway_volcano_custom
+* analyzePathVolcano
+* analyzePathVolcanoViz
+
+The current version of README.md is written by Claude 3.5 Sonnet.
+
+## AnalyzePathVolcano
+
+This repository contains an R function `analyze_pathway_volcano_custom` for creating customized volcano plots that highlight genes from a specific pathway within the context of differential expression results.
+
+### Function Description
+
+The `analyze_pathway_volcano_custom` function generates a visually informative volcano plot that emphasizes genes from a specified pathway, allowing for various customizations including significance thresholds, labeling methods, and visual parameters.
+
+#### Parameters
+
+- `pathway_name`: Name of the pathway to highlight
+- `gsea_results`: GSEA results object containing pathway information
+- `de_results`: Differential expression results data frame
+- `p_cutoff`: P-value cutoff for significance (default: 0.05)
+- `fc_cutoff`: Fold change cutoff for significance (default: 2.0)
+- `label_method`: Method to determine which genes to label ("default", "fc", "p", or "all")
+- `max_overlaps`: Maximum number of label overlaps allowed (default: 100)
+
+#### Dependencies
+
+The function requires the following R packages:
+- ggplot2
+- dplyr
+- stringr
+- ggrepel
+
+### Usage
+
+```R
+source("analyze_pathway_volcano_custom.R")
+# Assuming you have GSEA results and DE results objects
+plot <- analyze_pathway_volcano_custom("Pathway Name", gsea_results, de_results,
+                                       p_cutoff = 0.01, fc_cutoff = 1.5,
+                                       label_method = "all")
+print(plot)
+```
+
+### Features
+
+1. Highlights genes from a specific pathway within the context of all DE results
+2. Flexible labeling options for genes of interest
+3. Customizable significance thresholds for p-value and fold change
+4. Visually appealing volcano plot with:
+   - Color-coded points for pathway genes and significant genes
+   - Dashed lines indicating significance thresholds
+   - Labels for selected genes using `ggrepel` for optimal placement
+   - Customizable appearance (title, subtitle, axis labels)
+
+### Customization
+
+You can customize the plot by adjusting various parameters:
+- `p_cutoff` and `fc_cutoff` to set different significance thresholds
+- `label_method` to control which genes are labeled
+- `max_overlaps` to adjust label density and prevent overcrowding
+
+### Contributing
+
+Feel free to fork this repository and submit pull requests with improvements or bug fixes.
+
+### License
+
+[Specify your chosen license here]
+
+
+
+## Multi-Style Pathway Volcano Plot Function
+
+This repository contains an R function `analyze_pathway_volcano` for creating customized volcano plots that highlight genes from a specific pathway within the context of differential expression results. The function offers multiple styling options to suit different visualization preferences.
+
+### Function Description
+
+The `analyze_pathway_volcano` function generates visually informative volcano plots that emphasize genes from a specified pathway, allowing for various customizations including significance thresholds, labeling methods, visual parameters, and plotting styles.
+
+### Parameters
+
+- `pathway_name`: Name of the pathway to highlight
+- `gsea_results`: GSEA results object containing pathway information
+- `de_results`: Differential expression results data frame
+- `p_cutoff`: P-value cutoff for significance (default: 0.05)
+- `fc_cutoff`: Fold change cutoff for significance (default: 2.0)
+- `label_method`: Method to determine which genes to label ("default", "fc", "p", or "all")
+- `max_overlaps`: Maximum number of label overlaps allowed (default: 100)
+- `style`: Plotting style to use ("clean", "claude", or "gpt")
+
+### Dependencies
+
+The function requires the following R packages:
+- ggplot2
+- dplyr
+- stringr
+- ggrepel
+
+### Usage
+
+```R
+source("analyze_pathway_volcano.R")
+# Assuming you have GSEA results and DE results objects
+plot <- analyze_pathway_volcano("Pathway Name", gsea_results, de_results,
+                                p_cutoff = 0.01, fc_cutoff = 1.5,
+                                label_method = "all", style = "clean")
+print(plot)
+```
+
+### Features
+
+1. Highlights genes from a specific pathway within the context of all DE results
+2. Flexible labeling options for genes of interest
+3. Customizable significance thresholds for p-value and fold change
+4. Multiple styling options:
+   - "clean": Minimalist style with no legend
+   - "claude": Enhanced volcano-style legend with colorblind-friendly palette
+   - "gpt": Legend without alpha transparency
+5. Visually appealing volcano plots with:
+   - Color-coded points for pathway genes and significant genes
+   - Dashed lines indicating significance thresholds
+   - Labels for selected genes using `ggrepel` for optimal placement
+   - Customizable appearance (title, subtitle, axis labels)
+
+### Customization
+
+You can customize the plot by adjusting various parameters:
+- `p_cutoff` and `fc_cutoff` to set different significance thresholds
+- `label_method` to control which genes are labeled
+- `max_overlaps` to adjust label density and prevent overcrowding
+- `style` to choose between different visual presentations
+
+### Plot Styles
+
+1. Clean Style ("clean"):
+   - Minimalist design with no legend
+   - Pathway genes highlighted in distinct colors based on significance
+   - Non-pathway genes in grey
+
+2. Claude Style ("claude"):
+   - Enhanced volcano-style legend
+   - Colorblind-friendly palette
+   - Legend positioned in the top-right corner
+   - Generated by Claude 3.5 Sonnet
+
+3. GPT Style ("gpt"):
+   - Distinct colors for different gene statuses
+   - Legend positioned near the top-right corner
+   - Generated by ChatGPT-4o
+
+### Contributing
+
+Feel free to fork this repository and submit pull requests with improvements or bug fixes. We welcome contributions for new styling options or additional customization features.
+
+### License
+
+[Specify your chosen license here]
+
 
 ## Custom GSEA Dotplot Function
 
