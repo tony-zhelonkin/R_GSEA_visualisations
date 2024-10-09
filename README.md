@@ -6,14 +6,13 @@ The functions are:
 * custom_dotplot
 * custom_dotplot_comparison
 * gsea_comparison_plot
-* analyzePathVolcano
-* analyzePathVolcanoViz
+* analyze_pathway_volcano
 
 The current version of README.md is written by Claude 3.5 Sonnet.
 
 ## Multi-Style Pathway Volcano Plot Function
 
-This repository contains an R function `analyze_pathway_volcano` for creating customized volcano plots that highlight genes from a specific pathway within the context of differential expression results. The function offers multiple styling options to suit different visualization preferences.
+R function `analyze_pathway_volcano` creates customized volcano plots that highlight genes from a specific GSEA analysis pathway within the context of differential expression results. The function offers multiple styling options to suit different visualization preferences. It`s usefeul if you need to show the \`behaviour\` of pathway genes against the universe of all the background genes.
 
 ### Function Description
 
@@ -48,6 +47,9 @@ plot <- analyze_pathway_volcano("Pathway Name", gsea_results, de_results,
                                 label_method = "all", style = "clean")
 print(plot)
 ```
+
+### Example
+
 
 ### Features
 

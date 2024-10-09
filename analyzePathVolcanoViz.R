@@ -58,10 +58,10 @@ analyze_pathway_volcano <- function(pathway_name, gsea_results, de_results,
   # Determine labeling data based on method
   label_data <- switch(
     label_method,
-    "default" = de_results %>% filter(highlight),
-    "fc" = de_results %>% filter(in_pathway & abs(logFC) > fc_cutoff),
-    "p" = de_results %>% filter(in_pathway & adj.P.Val < p_cutoff),
-    "all" = de_results %>% filter(in_pathway & (abs(logFC) > fc_cutoff | adj.P.Val < p_cutoff)),
+    "default" = de_results %>% filter(in_pathway & highlight),  # Only label pathway genes with both p-value & Log2FC significant
+    "fc" = de_results %>% filter(in_pathway & abs(logFC) > fc_cutoff),  # Label pathway genes crossing fold change threshold
+    "p" = de_results %>% filter(in_pathway & adj.P.Val < p_cutoff),  # Label pathway genes crossing p-value threshold
+    "all" = de_results %>% filter(in_pathway & (abs(logFC) > fc_cutoff | adj.P.Val < p_cutoff)),  # Label all significant pathway genes (either p-value or fold change)
     stop("Invalid label_method. Please use 'default', 'fc', 'p', or 'all'.")
   )
 
