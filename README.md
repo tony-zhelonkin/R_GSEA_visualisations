@@ -257,6 +257,7 @@ The `custom_dotplot_comparison` function generates a side-by-side dotplot compar
 - `min.dotSize`: Minimum dot size in the plot (default: 2)
 - `sample_x_name`, `sample_y_name`: Names for the two samples (default: "Sample X" and "Sample Y")
 - `sortBy`: Method to sort pathways ("importance_score", "qvalue", "x", or "y") (default: "importance_score")
+**Note!** Choosing the sorting method might be tricky, so just take an look to see what works best for your specific use case. The x and y methods sort either for x or y samples. The `qvalue` sorting usually looks the most awkward. The `importance_score` sorting is a multiply of `qvalue` and `GeneRatio` and so results in a visual hybrid sorting.
 
 #### Dependencies
 
@@ -287,7 +288,7 @@ print(plot)
 
 ### Example Usage
 
-**Note!** That I\`m using the `common_mix` pathways from the NESscatter function as an input. Thus I define the pathways, which I want to visually compare between two GSEA runs.
+**Note!** That I\`m using the `common_mix` pathways from the NESscatter function as an input. Thus I define the pathways, which I want to visually compare between two GSEA runs. You may choose, whether you want to compare the `common_mix` (top 10 negative & top 10 positive pathways), or just negative or positive pathways only.
 
 ```R
 # Example usage with your GSEA objects
