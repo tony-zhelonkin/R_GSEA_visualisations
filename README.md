@@ -205,7 +205,7 @@ source("custom_dotplot.R")
 # Assuming you have a GSEA result object named 'gsea_result'
 plot <- custom_dotplot(gsea_result, showCategory = 15, filterBy = "NES", sortBy = "GeneRatio")
 print(plot)
-:```
+```
 
 ### Example
 ![alt_text](https://github.com/tony-zhelonkin/R_GSEA_visualisations/blob/main/examples/dotplot/1way.png?raw=true)
