@@ -13,13 +13,14 @@ gs_plot_running(
   labels = NULL,
   palette = NULL,
   panel_heights = c(2.4, 0.7, 0.9),
-  es_ylim = NULL,
+  es_ylim = c(-1, 1),
   gsea_param = 1,
+  linewidth = 1.1,
   metric_label = "Ranked metric",
   title = NULL,
   base_size = 14,
   max_name_length = 40,
-  legend_position = c("inside", "right", "bottom", "none"),
+  legend_position = c("right", "inside", "bottom", "none"),
   legend_pos = c(0.98, 0.98),
   xticks = c("bottom", "all"),
   rug_ylabels = FALSE,
@@ -57,13 +58,19 @@ to \code{pathways} in the given order (recycled). \code{NULL} uses \code{\link[=
 \item{panel_heights}{Length-3 numeric, the ES : ticks : metric height ratio,
 passed to \code{\link[patchwork:wrap_plots]{patchwork::wrap_plots()}} as \code{heights}.}
 
-\item{es_ylim}{Optional length-2 numeric y limit for the \strong{ES panel only},
-applied with \code{\link[ggplot2:coord_cartesian]{ggplot2::coord_cartesian()}} so nothing is dropped. Use it to
-put several contrasts on one comparable scale. The tick and metric panels
-are never clamped.}
+\item{es_ylim}{Length-2 numeric y limit for the \strong{ES panel only}, applied
+with \code{\link[ggplot2:coord_cartesian]{ggplot2::coord_cartesian()}} so nothing is dropped. Defaults to
+\code{c(-1, 1)}, the mathematical range of a running enrichment score, so that
+curves from different contrasts and different databases are directly
+comparable without the reader checking each axis. \code{NULL} lets each figure
+pick its own range. The tick and metric panels are never clamped.}
 
 \item{gsea_param}{Numeric exponent passed to
 \code{\link[fgsea:plotEnrichmentData]{fgsea::plotEnrichmentData()}}'s \code{gseaParam}.}
+
+\item{linewidth}{Numeric. Weight of the ES curves. Gene ticks are drawn at
+\verb{0.45 *} this, thinner on purpose: at curve weight a dense set merges into
+a solid block. Raise it for a figure that has to read from a distance.}
 
 \item{metric_label}{Character. Axis label for the ranked-metric panel; name
 the statistic you ranked by (e.g. \code{"t statistic"}, \code{"log2 FC"}).}
@@ -77,8 +84,10 @@ floor to the default foundation theme, and
 \item{max_name_length}{Integer. Legend labels longer than this are \emph{wrapped}
 onto several lines, never truncated.}
 
-\item{legend_position}{One of \code{"inside"} (default), \code{"right"}, \code{"bottom"}
-or \code{"none"}.}
+\item{legend_position}{One of \code{"right"} (default), \code{"inside"}, \code{"bottom"}
+or \code{"none"}. The default keeps the legend out of the panel, so a long
+pathway name cannot sit over the curves; it costs figure width, which
+\code{"inside"} does not.}
 
 \item{legend_pos}{Length-2 numeric, the inside-legend position in npc units,
 used only when \code{legend_position = "inside"}.}

@@ -16,18 +16,21 @@ one unnamed character vector of hex colours.
 }
 \description{
 The palettes are vendored from the \code{ltc} package (MIT, see
-\code{inst/LICENSE.note}). \code{bulkiRNA} uses three of them as defaults:
+\code{inst/LICENSE.note}).
 }
 \details{
-\itemize{
-\item \code{hat} (10 colours) for qualitative scales -- per-pathway running-sum
-curves, and any per-family or per-class grouping.
-\item \code{heatmap2} (5 colours, ColorBrewer RdBu) for diverging scales. Its exact
-\verb{#f7f7f7} midpoint is why it can replace the previous three-stop ramp
-without changing the length-3 \code{palette} contract that
-\code{\link[=gs_plot_bar]{gs_plot_bar()}}, \code{\link[=gs_plot_dot]{gs_plot_dot()}} and \code{\link[=gs_plot_heatmap]{gs_plot_heatmap()}} document.
-\item \code{heatmap0} (9 colours) for sequential scales.
-}
+\code{hat} (10 colours) is the \strong{qualitative default} -- per-pathway running-sum
+curves, and any per-family or per-class grouping. Subsets are spread across
+it rather than taken as a prefix, because it is ordered as a hue wheel; see
+\code{\link[=gs_palette]{gs_palette()}}.
+
+The \strong{diverging default is not from this table}. It stays the house
+blue-white-orange ramp, which measurably survives colour-vision deficiency
+better than the red-ended alternatives here. \code{heatmap2} (ColorBrewer RdBu)
+and \code{heatmap3} (RdYlBu) are available for callers who want them: both have a
+near-white midpoint, so \code{bulki_palettes("heatmap2")[c(5, 3, 1)]} is a valid
+length-3 \code{palette} for \code{\link[=gs_plot_bar]{gs_plot_bar()}}, \code{\link[=gs_plot_dot]{gs_plot_dot()}} and
+\code{\link[=gs_plot_heatmap]{gs_plot_heatmap()}}. \code{heatmap0} (9 colours) suits a sequential scale.
 }
 \examples{
 names(bulki_palettes())

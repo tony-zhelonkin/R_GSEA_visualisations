@@ -4,25 +4,47 @@
 
 #' Colour ramp for signed statistics
 #'
-#' The `heatmap2` palette from [bulki_palettes()] (ColorBrewer RdBu-5),
-#' reoriented so down stays blue and up becomes red. Down-is-blue matches the
-#' previous blue-white-orange ramp; only the warm end changed.
+#' Blue-white-orange, kept as the default because it survives colour-vision
+#' deficiency better than the red-ended alternatives. Measured as the CIE Lab
+#' distance between the two ends under simulated deficiency, which is what
+#' decides whether a reader can still tell up from down:
 #'
-#' `heatmap2`'s midpoint is exactly `#f7f7f7`, so this stays a three-stop ramp
-#' usable with [ggplot2::scale_fill_gradient2()] and the documented length-3
-#' `palette` contract in [gs_plot_bar()], [gs_plot_dot()] and
-#' [gs_plot_heatmap()] is unchanged. Pass `bulki_palettes("heatmap3")[c(5, 3,
-#' 1)]` for the red-yellow-blue alternative.
+#' | ramp | normal | deutan | protan | tritan | worst |
+#' |---|---|---|---|---|---|
+#' | blue-orange (this) | 103.1 | 103.6 | 90.4 | 85.4 | **85.4** |
+#' | `heatmap3` RdYlBu | 113.4 | 95.9 | 72.1 | 123.5 | 72.1 |
+#' | `heatmap2` RdBu | 110.2 | 93.2 | 67.2 | 119.8 | 67.2 |
 #'
-#' The legacy `gsea_*` and `create_*` fixtures keep the old literals on
-#' purpose: they are the golden baseline, and it must not move when a public
-#' default does.
+#' Red loses the most lightness under protanopia, so a red-ended ramp scores
+#' worst exactly where it matters. Both alternatives remain available through
+#' [bulki_palettes()]; pass `bulki_palettes("heatmap2")[c(5, 3, 1)]` or
+#' `bulki_palettes("heatmap3")[c(5, 3, 1)]` as `palette` to use one.
+#'
+#' Keeping this default also means no already-published figure changes colour.
 #'
 #' @return A length-3 character vector: low, mid, high.
 #' @keywords internal
 .gs_diverging_colours <- function() {
-  pal <- bulki_palettes("heatmap2")
-  c(low = pal[[5L]], mid = pal[[3L]], high = pal[[1L]])
+  c(low = "#2166AC", mid = "#F7F7F7", high = "#B35806")
+}
+
+#' Is a display name a placeholder rather than a name?
+#'
+#' A `pathway_name` is meant to be the reader-facing label, so a renderer
+#' treats it as authoritative. That breaks when a provider wrote a placeholder:
+#' `coresh_derived_sets.gmt` ships `-` in every description field, and the
+#' resulting legend read `-` five times. Anything with no letter or digit in it
+#' cannot be a name, so it falls back to the machine id.
+#'
+#' Applied to already-cached results too, which is the point: a cache built by
+#' an older provider must still render, without being rebuilt.
+#'
+#' @param x Character vector of candidate display names.
+#' @return A logical vector, `TRUE` where `x` carries no usable name.
+#' @keywords internal
+.gs_placeholder_name <- function(x) {
+  x <- as.character(x)
+  is.na(x) | !grepl("[[:alnum:]]", x)
 }
 
 #' Check that an object is a usable `gs_result`
@@ -197,7 +219,7 @@
   # formatted. gs_plot_running() has done this since 1.0.0; the bar, dot and
   # heatmap renderers had not.
   lbl <- as.character(df$pathway_name)
-  raw <- is.na(lbl) | lbl == df$pathway_id
+  raw <- .gs_placeholder_name(lbl) | lbl == df$pathway_id
   lbl[raw] <- format_pathway_name(df$pathway_id[raw],
                                   strip_prefix = strip_prefix)
   dup <- lbl %in% lbl[duplicated(lbl)]

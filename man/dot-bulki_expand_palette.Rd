@@ -15,9 +15,16 @@
 A character vector of \code{n} colours.
 }
 \description{
-Takes the first \code{n} colours when the palette is long enough, and
-interpolates otherwise. Interpolating a qualitative palette weakens its
-separation, which is why the default is the 10-colour \code{hat} rather than one
-of the three-colour sets.
+Spreads the picks across the palette when it is long enough, and
+interpolates when it is not.
+}
+\details{
+Spreading, rather than taking the first \code{n}: a qualitative palette is
+usually ordered as a hue wheel, so a contiguous prefix is a set of
+\emph{neighbouring} hues. \code{hat}'s first five are amber, orange, red, crimson and
+purple -- all warm, and the first two are nearly indistinguishable on a
+plotted line. Taking every other entry instead gives five hues that are
+actually telling apart. The whole point of a qualitative scale is
+separation, so separation is what the subset optimises.
 }
 \keyword{internal}

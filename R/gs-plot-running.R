@@ -62,12 +62,17 @@
 #'   to `pathways` in the given order (recycled). `NULL` uses [gs_palette()].
 #' @param panel_heights Length-3 numeric, the ES : ticks : metric height ratio,
 #'   passed to [patchwork::wrap_plots()] as `heights`.
-#' @param es_ylim Optional length-2 numeric y limit for the **ES panel only**,
-#'   applied with [ggplot2::coord_cartesian()] so nothing is dropped. Use it to
-#'   put several contrasts on one comparable scale. The tick and metric panels
-#'   are never clamped.
+#' @param es_ylim Length-2 numeric y limit for the **ES panel only**, applied
+#'   with [ggplot2::coord_cartesian()] so nothing is dropped. Defaults to
+#'   `c(-1, 1)`, the mathematical range of a running enrichment score, so that
+#'   curves from different contrasts and different databases are directly
+#'   comparable without the reader checking each axis. `NULL` lets each figure
+#'   pick its own range. The tick and metric panels are never clamped.
 #' @param gsea_param Numeric exponent passed to
 #'   [fgsea::plotEnrichmentData()]'s `gseaParam`.
+#' @param linewidth Numeric. Weight of the ES curves. Gene ticks are drawn at
+#'   `0.45 *` this, thinner on purpose: at curve weight a dense set merges into
+#'   a solid block. Raise it for a figure that has to read from a distance.
 #' @param metric_label Character. Axis label for the ranked-metric panel; name
 #'   the statistic you ranked by (e.g. `"t statistic"`, `"log2 FC"`).
 #' @param title Optional plot title, drawn over the ES panel.
@@ -76,8 +81,10 @@
 #'   `gs_save(rescale_fonts = TRUE)` sets absolute sizes that supersede both.
 #' @param max_name_length Integer. Legend labels longer than this are *wrapped*
 #'   onto several lines, never truncated.
-#' @param legend_position One of `"inside"` (default), `"right"`, `"bottom"`
-#'   or `"none"`.
+#' @param legend_position One of `"right"` (default), `"inside"`, `"bottom"`
+#'   or `"none"`. The default keeps the legend out of the panel, so a long
+#'   pathway name cannot sit over the curves; it costs figure width, which
+#'   `"inside"` does not.
 #' @param legend_pos Length-2 numeric, the inside-legend position in npc units,
 #'   used only when `legend_position = "inside"`.
 #' @param xticks `"bottom"` (default) draws x-axis text and ticks on the
@@ -106,13 +113,14 @@ gs_plot_running <- function(x,
                             labels = NULL,
                             palette = NULL,
                             panel_heights = c(2.4, 0.7, 0.9),
-                            es_ylim = NULL,
+                            es_ylim = c(-1, 1),
                             gsea_param = 1,
+                            linewidth = 1.1,
                             metric_label = "Ranked metric",
                             title = NULL,
                             base_size = 14,
                             max_name_length = 40,
-                            legend_position = c("inside", "right", "bottom",
+                            legend_position = c("right", "inside", "bottom",
                                                 "none"),
                             legend_pos = c(0.98, 0.98),
                             xticks = c("bottom", "all"),
@@ -122,6 +130,10 @@ gs_plot_running <- function(x,
   xticks <- match.arg(xticks)
   .grs_check_heights(panel_heights)
   .grs_check_ylim(es_ylim)
+  if (!is.numeric(linewidth) || length(linewidth) != 1L ||
+        is.na(linewidth) || !is.finite(linewidth) || linewidth <= 0) {
+    stop("`linewidth` must be one finite positive number.", call. = FALSE)
+  }
 
   ranks <- .grs_ranks(x, ranks)
   sets <- .grs_sets(x, db)
@@ -143,13 +155,14 @@ gs_plot_running <- function(x,
 
   # The composer is a closure over the computed curve data, so a restyle
   # re-lays-out the figure without re-running fgsea.
-  compose <- function(es_ylim = NULL,
-                      legend_position = "inside",
+  compose <- function(es_ylim = c(-1, 1),
+                      legend_position = "right",
                       xticks = "bottom",
                       rug_ylabels = FALSE,
                       panel_heights = c(2.4, 0.7, 0.9),
                       base_theme = NULL,
                       base_size = 14,
+                      linewidth = 1.1,
                       ...) {
     legend_position <- match.arg(
       legend_position, c("inside", "right", "bottom", "none")
@@ -162,11 +175,11 @@ gs_plot_running <- function(x,
 
     es <- .grs_panel_es(
       frames$es, pal, set_labels, es_ylim, xlim, axis_labels[["es"]], title,
-      base, show_x, legend_position, legend_pos
+      base, show_x, legend_position, legend_pos, linewidth
     )
     ticks <- .grs_panel_ticks(
       frames$ticks, pal, length(ids), xlim, axis_labels[["ticks"]], base,
-      show_x, rug_ylabels
+      show_x, rug_ylabels, linewidth
     )
     metric <- .grs_panel_metric(
       frames$stats, xlim, axis_labels[["stats"]], base, show_x = TRUE
@@ -177,7 +190,7 @@ gs_plot_running <- function(x,
   out <- compose(
     es_ylim = es_ylim, legend_position = legend_position, xticks = xticks,
     rug_ylabels = rug_ylabels, panel_heights = panel_heights,
-    base_theme = base_theme, base_size = base_size
+    base_theme = base_theme, base_size = base_size, linewidth = linewidth
   )
   # A styling contract that is only prose gets dropped in a refactor and the
   # consumer degrades silently. This attribute is asserted by the test suite.
@@ -273,11 +286,12 @@ gs_plot_running <- function(x,
 #' @return A `ggplot`.
 #' @keywords internal
 .grs_panel_es <- function(df, pal, set_labels, es_ylim, xlim, y_lab, title,
-                          base, show_x, legend_position, legend_pos) {
+                          base, show_x, legend_position, legend_pos,
+                          linewidth = 1.1) {
   p <- ggplot(df, aes(x = .data$rank, y = .data$y,
                       colour = .data$pathway_id)) +
     geom_hline(yintercept = 0, colour = "grey60", linewidth = 0.3) +
-    geom_line(linewidth = 0.7) +
+    geom_line(linewidth = linewidth) +
     scale_colour_manual(
       values = pal,
       breaks = names(pal),
@@ -306,7 +320,7 @@ gs_plot_running <- function(x,
 #' @return A `ggplot`.
 #' @keywords internal
 .grs_panel_ticks <- function(df, pal, n, xlim, y_lab, base, show_x,
-                             rug_ylabels) {
+                             rug_ylabels, linewidth = 1.1) {
   # One pathway needs no colour to tell it apart, and black reads better than
   # an arbitrary hue -- the pre-package renderer did the same.
   if (n == 1L) pal <- stats::setNames(rep("black", length(pal)), names(pal))
@@ -315,7 +329,9 @@ gs_plot_running <- function(x,
       aes(x = .data$rank, xend = .data$rank,
           y = .data$ymin, yend = .data$ymax,
           colour = .data$pathway_id),
-      linewidth = 0.35
+      # Ticks track the curve weight so the two read as one figure, but stay
+      # thinner: at curve weight they merge into a solid block.
+      linewidth = linewidth * 0.45
     ) +
     scale_colour_manual(values = pal, breaks = names(pal), guide = "none") +
     scale_x_continuous(expand = expansion(mult = c(0, 0))) +
@@ -371,8 +387,19 @@ gs_plot_running <- function(x,
 .grs_compose <- function(panels, panel_heights, legend_position) {
   pw <- patchwork::wrap_plots(panels, ncol = 1L, heights = panel_heights)
   if (legend_position %in% c("right", "bottom")) {
+    # A collected guide is placed by patchwork at figure level, so the
+    # justification has to be re-asserted there with `&`. Set on the ES panel
+    # alone it is ignored, and the legend floats level with the tick panel.
     pw <- pw + patchwork::plot_layout(guides = "collect")
-    pw <- pw & theme(legend.position = legend_position)
+    pw <- pw & theme(
+      legend.position = legend_position,
+      legend.justification = if (identical(legend_position, "right")) {
+        "top"
+      } else {
+        "left"
+      },
+      legend.justification.right = "top"
+    )
   }
   pw
 }
@@ -390,7 +417,20 @@ gs_plot_running <- function(x,
       panel.grid.major.x = element_blank(),
       # Panels sit directly above one another, so per-panel top/bottom margins
       # would read as gaps in what should be one figure.
-      plot.margin = margin(2, 10, 2, 5)
+      plot.margin = margin(2, 10, 2, 5),
+      # Bold axis titles and a bold plot title, and tighter label margins:
+      # this figure is read from a distance on a poster or a slide more often
+      # than it is read close up. Scoped to this renderer rather than to
+      # theme_bulki(), so no other figure changes weight.
+      axis.title = element_text(face = "bold"),
+      axis.text = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title.y = element_text(face = "bold", margin = margin(r = 4)),
+      axis.text.y = element_text(margin = margin(r = 2)),
+      axis.title.x = element_text(face = "bold", margin = margin(t = 4)),
+      axis.text.x = element_text(margin = margin(t = 2)),
+      axis.line = element_line(linewidth = 0.7),
+      axis.ticks = element_line(linewidth = 0.7)
     )
   )
 }
@@ -412,9 +452,15 @@ gs_plot_running <- function(x,
       legend.key.size = unit(0.8, "lines"),
       legend.key.spacing.y = unit(2, "pt")
     ),
+    # Top-aligned, not centred: the legend belongs beside the ES panel it
+    # describes. Centred over the full figure height it floats level with the
+    # tick panel, which it says nothing about.
     right = theme(legend.position = "right",
+                  legend.justification = "top",
+                  legend.justification.right = "top",
                   legend.key.spacing.y = unit(2, "pt")),
     bottom = theme(legend.position = "bottom",
+                   legend.justification = "left",
                    legend.key.spacing.y = unit(2, "pt")),
     none = theme(legend.position = "none")
   )
@@ -571,9 +617,14 @@ gs_plot_running <- function(x,
   # human-readable is left exactly as given, and only labels still equal to
   # their raw id are formatted. Fixing the raw-id leak must not introduce
   # mangled capitalisation in its place.
-  raw <- !is.na(base) & base == names(base)
+  # A placeholder is not a name. gsdb_from_file() used to hand through the
+  # literal "-" that coresh_derived_sets.gmt writes in every description field,
+  # which put "-" in the legend once per curve. Falling back to the id here as
+  # well as at parse time means a cache built by an older provider still
+  # renders a usable legend.
+  raw <- .gs_placeholder_name(base) | base == names(base)
   if (any(raw)) {
-    base[raw] <- format_pathway_name(base[raw])
+    base[raw] <- format_pathway_name(names(base)[raw])
   }
   vapply(base, .grs_wrap, character(1L), width = max_name_length,
          USE.NAMES = TRUE)

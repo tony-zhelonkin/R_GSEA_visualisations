@@ -36,6 +36,7 @@ Suggests:
     babelgene,
     BiocParallel,
     biomaRt,
+    colorspace,
     edgeR,
     gatom,
     GSVA,

@@ -4,7 +4,17 @@
 \alias{.grs_panel_ticks}
 \title{The gene-tick panel}
 \usage{
-.grs_panel_ticks(df, pal, n, xlim, y_lab, base, show_x, rug_ylabels)
+.grs_panel_ticks(
+  df,
+  pal,
+  n,
+  xlim,
+  y_lab,
+  base,
+  show_x,
+  rug_ylabels,
+  linewidth = 1.1
+)
 }
 \arguments{
 \item{df}{The \code{ticks} frame from \code{\link[=.grs_frames]{.grs_frames()}}.}

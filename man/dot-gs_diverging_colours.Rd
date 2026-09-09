@@ -10,18 +10,25 @@
 A length-3 character vector: low, mid, high.
 }
 \description{
-The \code{heatmap2} palette from \code{\link[=bulki_palettes]{bulki_palettes()}} (ColorBrewer RdBu-5),
-reoriented so down stays blue and up becomes red. Down-is-blue matches the
-previous blue-white-orange ramp; only the warm end changed.
+Blue-white-orange, kept as the default because it survives colour-vision
+deficiency better than the red-ended alternatives. Measured as the CIE Lab
+distance between the two ends under simulated deficiency, which is what
+decides whether a reader can still tell up from down:
 }
 \details{
-\code{heatmap2}'s midpoint is exactly \verb{#f7f7f7}, so this stays a three-stop ramp
-usable with \code{\link[ggplot2:scale_fill_gradient2]{ggplot2::scale_fill_gradient2()}} and the documented length-3
-\code{palette} contract in \code{\link[=gs_plot_bar]{gs_plot_bar()}}, \code{\link[=gs_plot_dot]{gs_plot_dot()}} and
-\code{\link[=gs_plot_heatmap]{gs_plot_heatmap()}} is unchanged. Pass \code{bulki_palettes("heatmap3")[c(5, 3, 1)]} for the red-yellow-blue alternative.
+\tabular{llllll}{
+   ramp \tab normal \tab deutan \tab protan \tab tritan \tab worst \cr
+   blue-orange (this) \tab 103.1 \tab 103.6 \tab 90.4 \tab 85.4 \tab \strong{85.4} \cr
+   \code{heatmap3} RdYlBu \tab 113.4 \tab 95.9 \tab 72.1 \tab 123.5 \tab 72.1 \cr
+   \code{heatmap2} RdBu \tab 110.2 \tab 93.2 \tab 67.2 \tab 119.8 \tab 67.2 \cr
+}
 
-The legacy \verb{gsea_*} and \verb{create_*} fixtures keep the old literals on
-purpose: they are the golden baseline, and it must not move when a public
-default does.
+
+Red loses the most lightness under protanopia, so a red-ended ramp scores
+worst exactly where it matters. Both alternatives remain available through
+\code{\link[=bulki_palettes]{bulki_palettes()}}; pass \code{bulki_palettes("heatmap2")[c(5, 3, 1)]} or
+\code{bulki_palettes("heatmap3")[c(5, 3, 1)]} as \code{palette} to use one.
+
+Keeping this default also means no already-published figure changes colour.
 }
 \keyword{internal}

@@ -13,15 +13,20 @@
 #' Colour palettes available to `bulkiRNA` renderers
 #'
 #' The palettes are vendored from the `ltc` package (MIT, see
-#' `inst/LICENSE.note`). `bulkiRNA` uses three of them as defaults:
+#' `inst/LICENSE.note`).
 #'
-#' * `hat` (10 colours) for qualitative scales -- per-pathway running-sum
-#'   curves, and any per-family or per-class grouping.
-#' * `heatmap2` (5 colours, ColorBrewer RdBu) for diverging scales. Its exact
-#'   `#f7f7f7` midpoint is why it can replace the previous three-stop ramp
-#'   without changing the length-3 `palette` contract that
-#'   [gs_plot_bar()], [gs_plot_dot()] and [gs_plot_heatmap()] document.
-#' * `heatmap0` (9 colours) for sequential scales.
+#' `hat` (10 colours) is the **qualitative default** -- per-pathway running-sum
+#' curves, and any per-family or per-class grouping. Subsets are spread across
+#' it rather than taken as a prefix, because it is ordered as a hue wheel; see
+#' [gs_palette()].
+#'
+#' The **diverging default is not from this table**. It stays the house
+#' blue-white-orange ramp, which measurably survives colour-vision deficiency
+#' better than the red-ended alternatives here. `heatmap2` (ColorBrewer RdBu)
+#' and `heatmap3` (RdYlBu) are available for callers who want them: both have a
+#' near-white midpoint, so `bulki_palettes("heatmap2")[c(5, 3, 1)]` is a valid
+#' length-3 `palette` for [gs_plot_bar()], [gs_plot_dot()] and
+#' [gs_plot_heatmap()]. `heatmap0` (9 colours) suits a sequential scale.
 #'
 #' @param name Optional palette name. `NULL` (default) returns the whole named
 #'   list, which is what you want when auditing or comparing palettes.
@@ -100,10 +105,16 @@ bulki_palettes <- function(name = NULL) {
 
 #' Expand a palette to an arbitrary length
 #'
-#' Takes the first `n` colours when the palette is long enough, and
-#' interpolates otherwise. Interpolating a qualitative palette weakens its
-#' separation, which is why the default is the 10-colour `hat` rather than one
-#' of the three-colour sets.
+#' Spreads the picks across the palette when it is long enough, and
+#' interpolates when it is not.
+#'
+#' Spreading, rather than taking the first `n`: a qualitative palette is
+#' usually ordered as a hue wheel, so a contiguous prefix is a set of
+#' *neighbouring* hues. `hat`'s first five are amber, orange, red, crimson and
+#' purple -- all warm, and the first two are nearly indistinguishable on a
+#' plotted line. Taking every other entry instead gives five hues that are
+#' actually telling apart. The whole point of a qualitative scale is
+#' separation, so separation is what the subset optimises.
 #'
 #' @param pal Character vector of hex colours.
 #' @param n Number of colours required.
@@ -113,7 +124,15 @@ bulki_palettes <- function(name = NULL) {
   if (!length(pal)) {
     stop("`pal` must contain at least one colour.", call. = FALSE)
   }
-  if (n <= length(pal)) return(pal[seq_len(n)])
+  if (n <= 0) return(character(0L))
+  if (n == 1L) return(pal[[1L]])
+  if (n <= length(pal)) {
+    idx <- unique(round(seq(1, length(pal), length.out = n)))
+    # Rounding can collide on short palettes; fall back to a prefix rather than
+    # return fewer colours than were asked for.
+    if (length(idx) < n) idx <- seq_len(n)
+    return(pal[idx])
+  }
   grDevices::colorRampPalette(pal)(n)
 }
 

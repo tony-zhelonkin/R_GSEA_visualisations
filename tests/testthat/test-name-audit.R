@@ -220,7 +220,7 @@ test_that("live export formals use the complete audited vocabulary", {
         "aes_x", "annotate_counts", "base_family", "base_font_size",
         "base_size", "base_theme",
         "caption", "colour_by", "database_labels", "decision_by", "dpi",
-        "es_ylim", "rescale_fonts", "rug_ylabels", "xticks",
+        "es_ylim", "linewidth", "rescale_fonts", "rug_ylabels", "xticks",
         "style", "title_width",
         "facet", "fixed_p_boundary", "formats", "grid", "height", "highlight",
         "highlight_gene", "keep_first_caption", "label", "label_method",
