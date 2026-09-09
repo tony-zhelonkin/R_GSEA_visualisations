@@ -336,21 +336,18 @@ gsea_barplot <- function(
 #' @param title Optional title for the ES (top) panel.
 #' @param panel_heights Length-3 numeric, the ES:rug:metric height ratio.
 #' @param legend_position One of `"inside"` (default), `"right"` or `"none"`.
-#' @param es_ylim Optional length-2 numeric; absorbed (see `@note`).
-#' @param xticks `"bottom"` (default) or `"all"`; absorbed (see `@note`).
-#' @param rug_ylabels Logical; absorbed (see `@note`).
+#' @param es_ylim Optional length-2 numeric y limit for the ES panel.
+#' @param xticks `"bottom"` (default) or `"all"`.
+#' @param rug_ylabels Logical. Show the rug panel's lane indices.
 #' @param base_theme Optional complete ggplot2 theme used as the foundation
 #'   for every panel.
 #'
-#' @return A ggplot object, as returned by [gs_plot_running()].
-#' @note `es_ylim` is absorbed and ignored: the new renderer would need a
-#'   per-facet zoom to honour it, which was deliberately dropped when
-#'   `gs_plot_running()` was written.
-#' @note `xticks` and `rug_ylabels` are absorbed and ignored: the new
-#'   renderer's layout is now structurally equivalent to the old
-#'   `xticks = "bottom"`, `rug_ylabels = FALSE` combination (x ticks only on
-#'   the bottom panel; the rug panel's y-index labels are always blanked), so
-#'   both old values of each collapse onto that one good layout.
+#' @return A `patchwork`, as returned by [gs_plot_running()].
+#' @note `es_ylim`, `xticks` and `rug_ylabels` are forwarded again as of
+#'   1.1.0. They were absorbed and ignored while `gs_plot_running()` drew all
+#'   three panels as facets of a single plot, which had no per-panel y scale to
+#'   honour them with. Now that it composes three real panels, each of these
+#'   formals means what it originally meant.
 #' @note `gsea_obj@geneList` and `gsea_obj@geneSets` are attached to the
 #'   converted `gs_result` as the `ranks` and `gene_sets` attributes, which
 #'   [gs_plot_running()] falls back to when its own `ranks`/`db` arguments are
@@ -382,11 +379,14 @@ gsea_running_sum_plot <- function(gsea_obj,
     labels = labels,
     palette = palette,
     panel_heights = panel_heights,
+    es_ylim = es_ylim,
     title = title,
     base_size = base_size,
     max_name_length = max_name_length,
     legend_position = legend_position,
     legend_pos = legend_pos,
+    xticks = xticks,
+    rug_ylabels = rug_ylabels,
     base_theme = base_theme
   )
 }

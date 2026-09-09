@@ -4,12 +4,25 @@
 
 #' Colour ramp for signed statistics
 #'
-#' Colorblind-safe blue-white-orange, matching the Python publication figures.
+#' The `heatmap2` palette from [bulki_palettes()] (ColorBrewer RdBu-5),
+#' reoriented so down stays blue and up becomes red. Down-is-blue matches the
+#' previous blue-white-orange ramp; only the warm end changed.
+#'
+#' `heatmap2`'s midpoint is exactly `#f7f7f7`, so this stays a three-stop ramp
+#' usable with [ggplot2::scale_fill_gradient2()] and the documented length-3
+#' `palette` contract in [gs_plot_bar()], [gs_plot_dot()] and
+#' [gs_plot_heatmap()] is unchanged. Pass `bulki_palettes("heatmap3")[c(5, 3,
+#' 1)]` for the red-yellow-blue alternative.
+#'
+#' The legacy `gsea_*` and `create_*` fixtures keep the old literals on
+#' purpose: they are the golden baseline, and it must not move when a public
+#' default does.
 #'
 #' @return A length-3 character vector: low, mid, high.
 #' @keywords internal
 .gs_diverging_colours <- function() {
-  c(low = "#2166AC", mid = "#F7F7F7", high = "#B35806")
+  pal <- bulki_palettes("heatmap2")
+  c(low = pal[[5L]], mid = pal[[3L]], high = pal[[1L]])
 }
 
 #' Check that an object is a usable `gs_result`
@@ -175,7 +188,18 @@
   # the figure silently shows n-1 of n results. Disambiguate the collisions only
   # (with the machine id, the one thing guaranteed unique), before wrapping, so
   # the appended text is wrapped too.
-  lbl <- format_pathway_name(df$pathway_name, strip_prefix = strip_prefix)
+  # Formatted selectively, not unconditionally. format_pathway_name() is built
+  # for ALL_CAPS_SNAKE ids and is not idempotent on prose: it turns "." into a
+  # space and title-cases every word, so a real display name arrives mangled --
+  # "GSE174808 · 40.1% var" came out as "Gse174808 · 40 1% Var". A provider that
+  # supplied pathway_names, or a caller who passed real labels, has already
+  # decided how they read. Only names still equal to their machine id are
+  # formatted. gs_plot_running() has done this since 1.0.0; the bar, dot and
+  # heatmap renderers had not.
+  lbl <- as.character(df$pathway_name)
+  raw <- is.na(lbl) | lbl == df$pathway_id
+  lbl[raw] <- format_pathway_name(df$pathway_id[raw],
+                                  strip_prefix = strip_prefix)
   dup <- lbl %in% lbl[duplicated(lbl)]
   if (any(dup)) {
     lbl[dup] <- paste0(lbl[dup], " (", df$pathway_id[dup], ")")

@@ -50,32 +50,28 @@ legend.}
 
 \item{legend_position}{One of \code{"inside"} (default), \code{"right"} or \code{"none"}.}
 
-\item{es_ylim}{Optional length-2 numeric; absorbed (see \verb{@note}).}
+\item{es_ylim}{Optional length-2 numeric y limit for the ES panel.}
 
-\item{xticks}{\code{"bottom"} (default) or \code{"all"}; absorbed (see \verb{@note}).}
+\item{xticks}{\code{"bottom"} (default) or \code{"all"}.}
 
-\item{rug_ylabels}{Logical; absorbed (see \verb{@note}).}
+\item{rug_ylabels}{Logical. Show the rug panel's lane indices.}
 
 \item{base_theme}{Optional complete ggplot2 theme used as the foundation
 for every panel.}
 }
 \value{
-A ggplot object, as returned by \code{\link[=gs_plot_running]{gs_plot_running()}}.
+A \code{patchwork}, as returned by \code{\link[=gs_plot_running]{gs_plot_running()}}.
 }
 \description{
 Deprecated: use \code{\link[=gs_plot_running]{gs_plot_running()}} instead. This shim reproduces the old
 formals of \code{gsea_running_sum_plot()} verbatim.
 }
 \note{
-\code{es_ylim} is absorbed and ignored: the new renderer would need a
-per-facet zoom to honour it, which was deliberately dropped when
-\code{gs_plot_running()} was written.
-
-\code{xticks} and \code{rug_ylabels} are absorbed and ignored: the new
-renderer's layout is now structurally equivalent to the old
-\code{xticks = "bottom"}, \code{rug_ylabels = FALSE} combination (x ticks only on
-the bottom panel; the rug panel's y-index labels are always blanked), so
-both old values of each collapse onto that one good layout.
+\code{es_ylim}, \code{xticks} and \code{rug_ylabels} are forwarded again as of
+1.1.0. They were absorbed and ignored while \code{gs_plot_running()} drew all
+three panels as facets of a single plot, which had no per-panel y scale to
+honour them with. Now that it composes three real panels, each of these
+formals means what it originally meant.
 
 \code{gsea_obj@geneList} and \code{gsea_obj@geneSets} are attached to the
 converted \code{gs_result} as the \code{ranks} and \code{gene_sets} attributes, which

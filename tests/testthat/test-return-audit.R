@@ -43,10 +43,14 @@ return_audit_contract <- function() {
       c(
         "de_bfc_plot", "de_md_plot", "de_pca", "de_volcano",
         "de_volcano_grid", "gs_plot_bar", "gs_plot_dot",
-        "gs_plot_heatmap", "gs_plot_running"
+        "gs_plot_heatmap", "gs_scale_fonts"
       ),
       "renderer", "ggplot"
     ),
+    # Pinned as patchwork, not ggplot. A patchwork inherits "ggplot", so the
+    # looser assertion would still pass if this regressed to a single plot --
+    # and that regression is exactly what broke every consumer figure at 1.0.0.
+    return_audit_rows("gs_plot_running", "renderer", "patchwork"),
     return_audit_rows(
       c(
         "ensure_dir", "gatom_download_refs", "gatom_save_html", "gs_save",
@@ -69,13 +73,15 @@ return_audit_contract <- function() {
     return_audit_rows("de_pca_3d", "interactive renderer", "plotly"),
     return_audit_rows("theme_bulki", "renderer component", "theme"),
     return_audit_rows("gsdb_list", "metadata", "data.frame"),
+    return_audit_rows(c("bulki_palettes", "gs_plot_size"), "metadata", "list"),
     return_audit_rows("gsdb_info", "metadata", "list"),
     return_audit_rows("read_counts_matrix", "reader", "matrix"),
     return_audit_rows("read_metadata", "reader", "data.frame"),
     return_audit_rows(
       c(
-        "entrez_to_gene", "filter_confounder_genes", "format_pathway_name",
-        "gatom_genes", "gs_master_columns", "gs_stat_types"
+        "coresh_labels", "entrez_to_gene", "filter_confounder_genes",
+        "format_pathway_name",
+        "gatom_genes", "gs_master_columns", "gs_palette", "gs_stat_types"
       ),
       "vector", "character"
     ),
@@ -287,7 +293,16 @@ test_that("every live export has one asserted return class or one reason", {
     filter_confounder_genes = function() filter_confounder_genes(
       c("ACTB", "RPL10", "GENE1")
     ),
+    bulki_palettes = function() bulki_palettes(),
+    coresh_labels = function() coresh_labels(
+      tibble::tibble(gse = "GSE1", gpl = "GPL1", pct_var = 1, query_size = 3L)
+    ),
     format_pathway_name = function() format_pathway_name("HALLMARK_MTORC1"),
+    gs_palette = function() gs_palette(c("SET_A", "SET_B")),
+    gs_plot_size = function() gs_plot_size("bar"),
+    gs_scale_fonts = function() gs_scale_fonts(
+      gs_plot_bar(plot_res), width = 7, height = 5
+    ),
     gatom_de = function() gatom_de(
       gatom_input, id = symbol, pval = p, log2FC = fc, baseMean = mean
     ),

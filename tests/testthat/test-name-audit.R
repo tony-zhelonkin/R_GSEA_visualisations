@@ -81,6 +81,7 @@ test_that("every live export has a layer prefix or a reasoned exception", {
     # Presentation names follow R/ggplot vocabulary and remain intentionally short.
     format_pathway_name = "general label formatter",
     theme_bulki = "house theme parallel to ggplot2 theme names",
+    bulki_palettes = "palette table parallel to the house theme, not one layer's",
     # The bulkirna_ prefix marks package-wide metadata and dependency checks.
     bulkirna_api = "package metadata",
     bulkirna_check_deps = "package-wide dependency inspection",
@@ -198,6 +199,8 @@ test_that("live export formals use the complete audited vocabulary", {
         "genes_df", "genome_build", "gpl", "gse_id", "gsea_param", "id",
         "input_gene_name", "jaccard_threshold", "k_gene", "k_met", "kcdf",
         "lifecycle", "m", "max_genes", "met_de", "method", "metric",
+        "alias_fallback",
+        "ids", "titles", "type",
         "min_genes", "min_queries", "multi_vals", "n", "name", "network",
         "networks", "norm_method", "obj", "overwrite", "p_cutoff", "p_value",
         "padj", "pathway_id", "pathway_names", "pathways", "pattern", "per",
@@ -214,8 +217,11 @@ test_that("live export formals use the complete audited vocabulary", {
     ),
     single_use(
       c(
-        "aes_x", "annotate_counts", "base_family", "base_size", "base_theme",
+        "aes_x", "annotate_counts", "base_family", "base_font_size",
+        "base_size", "base_theme",
         "caption", "colour_by", "database_labels", "decision_by", "dpi",
+        "es_ylim", "rescale_fonts", "rug_ylabels", "xticks",
+        "style", "title_width",
         "facet", "fixed_p_boundary", "formats", "grid", "height", "highlight",
         "highlight_gene", "keep_first_caption", "label", "label_method",
         "label_size", "labels", "legend_pos", "legend_position", "limits",

@@ -12,7 +12,9 @@ gs_save(
   dpi = 300,
   formats = c("pdf", "png"),
   data = NULL,
-  table = TRUE
+  table = TRUE,
+  rescale_fonts = TRUE,
+  base_font_size = 10
 )
 }
 \arguments{
@@ -35,6 +37,13 @@ gs_save(
 \code{plot$data}.}
 
 \item{table}{Logical. Write the source table. \code{FALSE} writes only images.}
+
+\item{rescale_fonts}{Logical. Scale text with the canvas via
+\code{\link[=gs_scale_fonts]{gs_scale_fonts()}}, so a figure asked for at 9 x 10 in does not carry the
+same point sizes as one at 7 x 5. \code{TRUE} by default.}
+
+\item{base_font_size}{Numeric. Reference point size at the 7 x 5 in
+reference canvas, used only when \code{rescale_fonts = TRUE}.}
 }
 \value{
 The written paths, invisibly.

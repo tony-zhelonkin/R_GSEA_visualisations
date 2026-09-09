@@ -10,6 +10,18 @@
 A length-3 character vector: low, mid, high.
 }
 \description{
-Colorblind-safe blue-white-orange, matching the Python publication figures.
+The \code{heatmap2} palette from \code{\link[=bulki_palettes]{bulki_palettes()}} (ColorBrewer RdBu-5),
+reoriented so down stays blue and up becomes red. Down-is-blue matches the
+previous blue-white-orange ramp; only the warm end changed.
+}
+\details{
+\code{heatmap2}'s midpoint is exactly \verb{#f7f7f7}, so this stays a three-stop ramp
+usable with \code{\link[ggplot2:scale_fill_gradient2]{ggplot2::scale_fill_gradient2()}} and the documented length-3
+\code{palette} contract in \code{\link[=gs_plot_bar]{gs_plot_bar()}}, \code{\link[=gs_plot_dot]{gs_plot_dot()}} and
+\code{\link[=gs_plot_heatmap]{gs_plot_heatmap()}} is unchanged. Pass \code{bulki_palettes("heatmap3")[c(5, 3, 1)]} for the red-yellow-blue alternative.
+
+The legacy \verb{gsea_*} and \verb{create_*} fixtures keep the old literals on
+purpose: they are the golden baseline, and it must not move when a public
+default does.
 }
 \keyword{internal}

@@ -13,13 +13,16 @@ gs_plot_running(
   labels = NULL,
   palette = NULL,
   panel_heights = c(2.4, 0.7, 0.9),
+  es_ylim = NULL,
   gsea_param = 1,
   metric_label = "Ranked metric",
   title = NULL,
   base_size = 14,
   max_name_length = 40,
-  legend_position = c("right", "bottom", "inside", "none"),
+  legend_position = c("inside", "right", "bottom", "none"),
   legend_pos = c(0.98, 0.98),
+  xticks = c("bottom", "all"),
+  rug_ylabels = FALSE,
   base_theme = NULL
 )
 }
@@ -40,7 +43,7 @@ membership. If \code{NULL}, \code{attr(x, "gene_sets")} is used, or \code{x} its
 \item{pathways}{Character vector of pathway ids, or (for a \code{gs_result})
 integer row indices. \code{NULL} picks the top \code{top_n} pathways by \code{abs(stat)}
 for a \code{gs_result}, or the first \code{top_n} sets otherwise. The order given is
-the order colours and legend keys are assigned in.}
+the order legend keys are assigned in.}
 
 \item{top_n}{Integer. How many pathways to pick when \code{pathways} is \code{NULL}.}
 
@@ -49,41 +52,53 @@ id (a partial map degrades gracefully -- unnamed ids keep their
 \code{pathway_name}), or unnamed and zipped to \code{pathways} in the given order.}
 
 \item{palette}{Optional colours, named by pathway id or unnamed and zipped
-to \code{pathways} in the given order (recycled). \code{NULL} uses a nine-colour
-vibrant ramp.}
+to \code{pathways} in the given order (recycled). \code{NULL} uses \code{\link[=gs_palette]{gs_palette()}}.}
 
-\item{panel_heights}{Length-3 numeric, the ES : ticks : metric height ratio.}
+\item{panel_heights}{Length-3 numeric, the ES : ticks : metric height ratio,
+passed to \code{\link[patchwork:wrap_plots]{patchwork::wrap_plots()}} as \code{heights}.}
+
+\item{es_ylim}{Optional length-2 numeric y limit for the \strong{ES panel only},
+applied with \code{\link[ggplot2:coord_cartesian]{ggplot2::coord_cartesian()}} so nothing is dropped. Use it to
+put several contrasts on one comparable scale. The tick and metric panels
+are never clamped.}
 
 \item{gsea_param}{Numeric exponent passed to
 \code{\link[fgsea:plotEnrichmentData]{fgsea::plotEnrichmentData()}}'s \code{gseaParam}.}
 
-\item{metric_label}{Character. Strip label for the ranked-metric panel; name
+\item{metric_label}{Character. Axis label for the ranked-metric panel; name
 the statistic you ranked by (e.g. \code{"t statistic"}, \code{"log2 FC"}).}
 
-\item{title}{Optional plot title.}
+\item{title}{Optional plot title, drawn over the ES panel.}
 
-\item{base_size}{Base font size, floored at 14 to stay legible at
-journal-column width.}
+\item{base_size}{Base font size. Note \code{\link[=theme_bulki]{theme_bulki()}} applies its own 14 pt
+floor to the default foundation theme, and
+\code{gs_save(rescale_fonts = TRUE)} sets absolute sizes that supersede both.}
 
 \item{max_name_length}{Integer. Legend labels longer than this are \emph{wrapped}
 onto several lines, never truncated.}
 
-\item{legend_position}{One of \code{"right"} (default), \code{"bottom"}, \code{"inside"}
+\item{legend_position}{One of \code{"inside"} (default), \code{"right"}, \code{"bottom"}
 or \code{"none"}.}
 
 \item{legend_pos}{Length-2 numeric, the inside-legend position in npc units,
 used only when \code{legend_position = "inside"}.}
 
+\item{xticks}{\code{"bottom"} (default) draws x-axis text and ticks on the
+bottom panel only; \code{"all"} draws them on every panel.}
+
+\item{rug_ylabels}{Logical. Show the tick panel's lane indices on its y
+axis. \code{FALSE} (default) hides them, since the index carries no meaning.}
+
 \item{base_theme}{Optional complete \code{\link[ggplot2:theme]{ggplot2::theme()}} used as the
-foundation; the panel chrome is re-applied on top so a project theme
-cannot clobber the layout. \code{NULL} uses \code{theme_bulki()} when available and
-\code{\link[ggplot2:theme_minimal]{ggplot2::theme_minimal()}} otherwise.}
+foundation for every panel; the panel chrome is re-applied on top so a
+project theme cannot clobber the layout. \code{NULL} uses \code{\link[=theme_bulki]{theme_bulki()}}.}
 }
 \value{
-A \code{ggplot}.
+A \code{patchwork} of three panels, carrying a \code{grs_restyle} attribute:
+\verb{function(es_ylim, legend_position, xticks, rug_ylabels, panel_heights, base_theme, base_size, ...)} returning a freshly composed figure.
 }
 \description{
-The canonical three-panel GSEA figure, rebuilt from scratch on
+The canonical three-panel GSEA figure, built on
 \code{\link[fgsea:plotEnrichmentData]{fgsea::plotEnrichmentData()}}:
 }
 \details{
@@ -93,15 +108,23 @@ The canonical three-panel GSEA figure, rebuilt from scratch on
 \item the ranked metric itself.
 }
 }
-\section{Why this is one faceted ggplot, not three composed plots}{
-The old \code{gsea_running_sum_plot()} built three separate ggplots and glued
-them with \code{patchwork}, then spent 16 helpers and three \verb{@note} blocks
-defending the alignment and colour invariants that composition kept
-breaking. Here the three panels are \strong{rows of a single
-\code{\link[ggplot2:facet_grid]{ggplot2::facet_grid()}}}, so they share one x scale \emph{by construction} --
-alignment is not something a composer has to preserve, and there is no
-\code{patchwork} dependency. The return value is a plain \code{ggplot}, which is what
-every other \verb{gs_plot_*} renderer returns and what \code{gs_save()} expects.
+\section{Why this returns a patchwork}{
+Because the three panels have unrelated y units, and a figure whose panels
+share one y scale cannot be post-styled. An earlier version drew all three
+as rows of a single \code{\link[ggplot2:facet_grid]{ggplot2::facet_grid()}}, rescaling each panel's data
+into a synthetic window so that \code{space = "free_y"} would size the panels in
+the requested ratio. That worked in isolation and broke on contact: any
+downstream \code{coord_cartesian(ylim = )}, \code{scale_y_continuous()} or patchwork
+\code{&} forced every panel to a common range, which flattened the height ratio
+to 1:1:1, crushed each curve into a fraction of its panel and pushed the
+inverse-mapped axis labels outside the visible window. Real panels have real
+y scales, so a caller can restyle one without destroying the others.
+
+The return value therefore has class \code{patchwork}, and carries a
+\code{grs_restyle} attribute -- a function that rebuilds the composition with new
+layout arguments, reusing the already-computed curve data. It exists so a
+project theme can be applied \emph{through} the composer rather than on top of a
+finished figure.
 }
 
 \section{Why colours cannot be permuted}{
@@ -109,19 +132,13 @@ The colour aesthetic is mapped to \strong{\code{pathway_id}}, never to a display
 label, and the scale is an explicit
 \verb{scale_colour_manual(values = <named vector>, breaks = names(values))} keyed
 by that same id. Legend \emph{text} is applied through the scale's \code{labels}, so
-renaming a pathway can never move its colour. The old failure mode -- an
-unnamed palette handed to \code{enrichplot::gseaplot2(color = )}, which assigns
-positionally while ggplot orders levels alphabetically, silently swapping
-two colours while the name-keyed legend text stayed correct -- is
-structurally impossible here.
-}
+renaming a pathway can never move its colour.
 
-\section{Panel heights}{
-\code{panel_heights} is the single knob for panel proportions, and it is honoured
-exactly: each panel's y range is padded (never clipped) so that the ranges
-stand in the requested ratio, and \code{facet_grid(space = "free_y")} sizes the
-panels from those ranges. No \code{aspect.ratio} is set anywhere, so panel widths
-cannot desynchronise.
+Colours are stable \emph{within} a figure, not across figures: with no \code{palette}
+the default is assigned in \code{sort(ids)} order, which is deterministic for a
+given set of ids but still changes when the plotted set changes. For one
+colour per pathway across a whole project, freeze a lookup once with
+\code{\link[=gs_palette]{gs_palette()}} and pass it to every call.
 }
 
 \examples{
@@ -130,5 +147,5 @@ ranks <- stats::setNames(seq(3, -3, length.out = 8), LETTERS[1:8])
 gs_plot_running(sets, ranks = ranks)
 }
 \seealso{
-\code{\link[=gs_ranks]{gs_ranks()}}, \code{\link[=gs_test]{gs_test()}}, \code{\link[=gs_leading_edge]{gs_leading_edge()}}
+\code{\link[=gs_ranks]{gs_ranks()}}, \code{\link[=gs_test]{gs_test()}}, \code{\link[=gs_leading_edge]{gs_leading_edge()}}, \code{\link[=gs_palette]{gs_palette()}}
 }

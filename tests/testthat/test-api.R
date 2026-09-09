@@ -48,7 +48,9 @@ test_that("the API registry covers the complete namespace exactly once", {
       "removed_in")
   )
   expect_equal(nrow(api), length(exports))
-  expect_equal(nrow(api), 59L)
+  # 64 at 1.1.0: + bulki_palettes, gs_palette, gs_plot_size, gs_scale_fonts
+  # (stable) and coresh_labels (experimental).
+  expect_equal(nrow(api), 64L)
   expect_equal(anyDuplicated(api$name), 0L)
   expect_setequal(api$name, exports)
   expect_identical(api$name, sort(api$name))
@@ -61,15 +63,18 @@ test_that("each export has one stability lifecycle and one layer", {
   expect_false(anyNA(api$layer))
   expect_true(all(nzchar(api$layer)))
   expect_true(all(api$lifecycle %in% c("stable", "experimental", "deprecated")))
-  expect_equal(sum(api$lifecycle == "stable"), 47L)
-  expect_equal(sum(api$lifecycle == "experimental"), 12L)
+  expect_equal(sum(api$lifecycle == "stable"), 51L)
+  expect_equal(sum(api$lifecycle == "experimental"), 13L)
   expect_equal(sum(api$lifecycle == "deprecated"), 0L)
 })
 
 test_that("experimental status covers CoReSh, coregulation and gene-id helpers", {
   api <- bulkirna_api(quiet = TRUE)
   experimental <- c(
-    "coresh_chunks", "coresh_convergence", "coresh_loadings", "coresh_match",
+    # coresh_labels is new at 1.1.0 and stays experimental with the rest of the
+    # CoReSh layer: a verb written this release has not earned a semver freeze.
+    "coresh_chunks", "coresh_convergence", "coresh_labels", "coresh_loadings",
+    "coresh_match",
     "coresh_search", "coresh_sets", "coresh_validate", "gs_coregulation",
     "gsdb_coresh", "entrez_to_gene", "filter_confounder_genes",
     "gene_to_entrez"

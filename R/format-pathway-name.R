@@ -61,7 +61,13 @@ format_pathway_name <- function(text, use_formatting = TRUE,
     "GOBP ", "GOCC ", "GOMF ", "PID ", "WIKIPATHWAY ",
     "WP ", "^GO ", "GTRD ", "NABA ", "HP ",
     # Custom metabolic / transport databases
-    "MITOXPLORER ", "MITOPATHWAYS ", "MITOCARTA ", "TRANSPORTDB "
+    "MITOXPLORER ", "MITOPATHWAYS ", "MITOCARTA ", "TRANSPORTDB ",
+    # CoReSh set ids are built as CORESH_<query_name>_<GSE>[_<GPL>] by
+    # coresh_sets(), so the prefix is this package's own and always redundant on
+    # a figure whose panel is already a CoReSh panel. What remains -- the query
+    # name -- is the caller's, and is left alone. Prefer coresh_labels() over
+    # displaying the id at all.
+    "CORESH "
   )
 }
 

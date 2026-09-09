@@ -2,17 +2,17 @@
 % Please edit documentation in R/gs-plot-running.R
 \name{.grs_panel_levels}
 \alias{.grs_panel_levels}
-\title{Panel keys and their strip labels}
+\title{Panel keys and their axis labels}
 \usage{
 .grs_panel_levels(metric_label = "Ranked metric")
 }
 \arguments{
-\item{metric_label}{Strip label for the ranked-metric panel.}
+\item{metric_label}{Axis label for the ranked-metric panel.}
 }
 \value{
-A named character vector, \verb{panel key -> strip label}.
+A named character vector, \verb{panel key -> axis label}.
 }
 \description{
-Panel keys and their strip labels
+Panel keys and their axis labels
 }
 \keyword{internal}

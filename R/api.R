@@ -72,11 +72,11 @@ bulkirna_api <- function(lifecycle = "all", quiet = FALSE) {
       "gsdb_msigdb", "gsdb_register"
     ),
     gs = c(
-      "gs_filter", "gs_leading_edge", "gs_plot_bar", "gs_plot_dot",
-      "gs_plot_heatmap", "gs_plot_running", "gs_ranks", "gs_read",
-      "gs_master_columns", "gs_save", "gs_score", "gs_split",
-      "gs_stat_types", "gs_test", "gs_to_master", "gs_top",
-      "gs_validate_master", "gs_write"
+      "gs_filter", "gs_leading_edge", "gs_palette", "gs_plot_bar",
+      "gs_plot_dot", "gs_plot_heatmap", "gs_plot_running", "gs_plot_size",
+      "gs_ranks", "gs_read", "gs_master_columns", "gs_save",
+      "gs_scale_fonts", "gs_score", "gs_split", "gs_stat_types", "gs_test",
+      "gs_to_master", "gs_top", "gs_validate_master", "gs_write"
     ),
     de = c(
       "de_bfc_plot", "de_md_plot", "de_pca", "de_pca_3d", "de_volcano",
@@ -87,7 +87,7 @@ bulkirna_api <- function(lifecycle = "all", quiet = FALSE) {
       "gatom_refs", "gatom_save_html"
     ),
     `top-level` = c(
-      "annotate_genes", "build_dge", "bulkirna_api",
+      "annotate_genes", "build_dge", "bulki_palettes", "bulkirna_api",
       "bulkirna_check_deps", "bulkirna_stochastic", "ensure_dir",
       "format_pathway_name", "read_counts_matrix", "read_metadata",
       "theme_bulki", "write_session_provenance"
@@ -99,8 +99,9 @@ bulkirna_api <- function(lifecycle = "all", quiet = FALSE) {
     gs = "gs_coregulation",
     # All dataset-level CoReSh APIs share the (gse, gpl) composite key.
     coresh = c(
-      "coresh_chunks", "coresh_convergence", "coresh_loadings",
-      "coresh_match", "coresh_search", "coresh_sets", "coresh_validate"
+      "coresh_chunks", "coresh_convergence", "coresh_labels",
+      "coresh_loadings", "coresh_match", "coresh_search", "coresh_sets",
+      "coresh_validate"
     ),
     `top-level` = c(
       "entrez_to_gene", "filter_confounder_genes", "gene_to_entrez"

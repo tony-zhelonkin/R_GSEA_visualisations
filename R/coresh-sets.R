@@ -451,7 +451,15 @@ coresh_sets <- function(top_hits, queries, chunk_dir = NULL,
       gpl = as.character(built$gpl),
       chunk_path = unname(as.character(location$chunk)),
       loading_cutoff = min(abs(built$loadings$loading)),
-      rank_in_coresh = as.integer(row$rank[[1L]])
+      rank_in_coresh = as.integer(row$rank[[1L]]),
+      # Carried so coresh_labels() can build a web-UI-style label without
+      # rejoining to the search ranking. `query_size` is the query size the
+      # search scored; `n_genes` is the derived set size. They are not the same
+      # number and a figure that conflates them misreports both.
+      pct_var = as.numeric(row$pct_var[[1L]] %||% NA_real_),
+      p_value = as.numeric(row$p_value[[1L]] %||% NA_real_),
+      query_size = as.integer(row$size[[1L]] %||% NA_integer_),
+      n_genes = length(built$genes)
     )
   }
 
@@ -540,10 +548,21 @@ coresh_sets <- function(top_hits, queries, chunk_dir = NULL,
     jaccard_threshold = jaccard_threshold
   )
 
+  # Display names come from coresh_labels(), not from the set id. The id
+  # encodes the query name, which for a DE-seeded query is the caller's own
+  # contrast label -- shown against an unrelated GEO accession, that reads as
+  # if the bar were about that contrast. Titles are not available offline, so
+  # the label is accession/platform/size/percent-of-variation; a caller with a
+  # title lookup can re-derive richer labels from `set_provenance`.
   gs_db(
     sets,
     database = "coresh",
     species = species_info$scientific,
+    pathway_names = if (nrow(set_provenance)) {
+      coresh_labels(set_provenance)
+    } else {
+      NULL
+    },
     database_label = "CoReSh-derived gene sets",
     set_provenance = set_provenance,
     provenance = database_provenance

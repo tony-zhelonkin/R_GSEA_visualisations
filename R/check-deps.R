@@ -19,7 +19,9 @@
     # qs2 reads the CoReSh chunk tree; BiocParallel spreads the search over
     # chunk files. Both are reached only through `coresh_*()`.
     "qs2", "BiocParallel",
-    "patchwork", "plotly",
+    # patchwork left this registry at 1.1.0: gs_plot_running() composes three
+    # real panels with it, so it is a hard Import rather than optional.
+    "plotly",
     "readxl", "yaml"
   )
   feature <- c(
@@ -28,7 +30,7 @@
     "scoring",
     rep("network", 3L),
     rep("coresh", 2L),
-    rep("plots", 2L),
+    "plots",
     rep("io", 2L)
   )
   repository <- c(
@@ -38,7 +40,7 @@
     "Bioconductor",
     "Bioconductor", "CRAN", "CRAN",
     "CRAN", "Bioconductor",
-    "CRAN", "CRAN",
+    "CRAN",
     "CRAN", "CRAN"
   )
   install <- ifelse(

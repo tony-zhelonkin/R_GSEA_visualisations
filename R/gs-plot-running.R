@@ -1,22 +1,30 @@
 #' GSEA running-sum (enrichment curve) plot
 #'
-#' The canonical three-panel GSEA figure, rebuilt from scratch on
+#' The canonical three-panel GSEA figure, built on
 #' [fgsea::plotEnrichmentData()]:
 #'
 #' 1. the running enrichment score (ES) curve,
 #' 2. one lane of gene-hit ticks per pathway,
 #' 3. the ranked metric itself.
 #'
-#' # Why this is one faceted ggplot, not three composed plots
+#' # Why this returns a patchwork
 #'
-#' The old `gsea_running_sum_plot()` built three separate ggplots and glued
-#' them with `patchwork`, then spent 16 helpers and three `@note` blocks
-#' defending the alignment and colour invariants that composition kept
-#' breaking. Here the three panels are **rows of a single
-#' [ggplot2::facet_grid()]**, so they share one x scale *by construction* --
-#' alignment is not something a composer has to preserve, and there is no
-#' `patchwork` dependency. The return value is a plain `ggplot`, which is what
-#' every other `gs_plot_*` renderer returns and what `gs_save()` expects.
+#' Because the three panels have unrelated y units, and a figure whose panels
+#' share one y scale cannot be post-styled. An earlier version drew all three
+#' as rows of a single [ggplot2::facet_grid()], rescaling each panel's data
+#' into a synthetic window so that `space = "free_y"` would size the panels in
+#' the requested ratio. That worked in isolation and broke on contact: any
+#' downstream `coord_cartesian(ylim = )`, `scale_y_continuous()` or patchwork
+#' `&` forced every panel to a common range, which flattened the height ratio
+#' to 1:1:1, crushed each curve into a fraction of its panel and pushed the
+#' inverse-mapped axis labels outside the visible window. Real panels have real
+#' y scales, so a caller can restyle one without destroying the others.
+#'
+#' The return value therefore has class `patchwork`, and carries a
+#' `grs_restyle` attribute -- a function that rebuilds the composition with new
+#' layout arguments, reusing the already-computed curve data. It exists so a
+#' project theme can be applied *through* the composer rather than on top of a
+#' finished figure.
 #'
 #' # Why colours cannot be permuted
 #'
@@ -24,19 +32,13 @@
 #' label, and the scale is an explicit
 #' `scale_colour_manual(values = <named vector>, breaks = names(values))` keyed
 #' by that same id. Legend *text* is applied through the scale's `labels`, so
-#' renaming a pathway can never move its colour. The old failure mode -- an
-#' unnamed palette handed to `enrichplot::gseaplot2(color = )`, which assigns
-#' positionally while ggplot orders levels alphabetically, silently swapping
-#' two colours while the name-keyed legend text stayed correct -- is
-#' structurally impossible here.
+#' renaming a pathway can never move its colour.
 #'
-#' # Panel heights
-#'
-#' `panel_heights` is the single knob for panel proportions, and it is honoured
-#' exactly: each panel's y range is padded (never clipped) so that the ranges
-#' stand in the requested ratio, and `facet_grid(space = "free_y")` sizes the
-#' panels from those ranges. No `aspect.ratio` is set anywhere, so panel widths
-#' cannot desynchronise.
+#' Colours are stable *within* a figure, not across figures: with no `palette`
+#' the default is assigned in `sort(ids)` order, which is deterministic for a
+#' given set of ids but still changes when the plotted set changes. For one
+#' colour per pathway across a whole project, freeze a lookup once with
+#' [gs_palette()] and pass it to every call.
 #'
 #' @param x A [gs_result][gs_result-class] (the usual case), a `gs_db`, or a
 #'   named list of character vectors. A `gs_result` supplies pathway ids,
@@ -51,34 +53,44 @@
 #' @param pathways Character vector of pathway ids, or (for a `gs_result`)
 #'   integer row indices. `NULL` picks the top `top_n` pathways by `abs(stat)`
 #'   for a `gs_result`, or the first `top_n` sets otherwise. The order given is
-#'   the order colours and legend keys are assigned in.
+#'   the order legend keys are assigned in.
 #' @param top_n Integer. How many pathways to pick when `pathways` is `NULL`.
 #' @param labels Optional character vector of legend labels, named by pathway
 #'   id (a partial map degrades gracefully -- unnamed ids keep their
 #'   `pathway_name`), or unnamed and zipped to `pathways` in the given order.
 #' @param palette Optional colours, named by pathway id or unnamed and zipped
-#'   to `pathways` in the given order (recycled). `NULL` uses a nine-colour
-#'   vibrant ramp.
-#' @param panel_heights Length-3 numeric, the ES : ticks : metric height ratio.
+#'   to `pathways` in the given order (recycled). `NULL` uses [gs_palette()].
+#' @param panel_heights Length-3 numeric, the ES : ticks : metric height ratio,
+#'   passed to [patchwork::wrap_plots()] as `heights`.
+#' @param es_ylim Optional length-2 numeric y limit for the **ES panel only**,
+#'   applied with [ggplot2::coord_cartesian()] so nothing is dropped. Use it to
+#'   put several contrasts on one comparable scale. The tick and metric panels
+#'   are never clamped.
 #' @param gsea_param Numeric exponent passed to
 #'   [fgsea::plotEnrichmentData()]'s `gseaParam`.
-#' @param metric_label Character. Strip label for the ranked-metric panel; name
+#' @param metric_label Character. Axis label for the ranked-metric panel; name
 #'   the statistic you ranked by (e.g. `"t statistic"`, `"log2 FC"`).
-#' @param title Optional plot title.
-#' @param base_size Base font size, floored at 14 to stay legible at
-#'   journal-column width.
+#' @param title Optional plot title, drawn over the ES panel.
+#' @param base_size Base font size. Note [theme_bulki()] applies its own 14 pt
+#'   floor to the default foundation theme, and
+#'   `gs_save(rescale_fonts = TRUE)` sets absolute sizes that supersede both.
 #' @param max_name_length Integer. Legend labels longer than this are *wrapped*
 #'   onto several lines, never truncated.
-#' @param legend_position One of `"right"` (default), `"bottom"`, `"inside"`
+#' @param legend_position One of `"inside"` (default), `"right"`, `"bottom"`
 #'   or `"none"`.
 #' @param legend_pos Length-2 numeric, the inside-legend position in npc units,
 #'   used only when `legend_position = "inside"`.
+#' @param xticks `"bottom"` (default) draws x-axis text and ticks on the
+#'   bottom panel only; `"all"` draws them on every panel.
+#' @param rug_ylabels Logical. Show the tick panel's lane indices on its y
+#'   axis. `FALSE` (default) hides them, since the index carries no meaning.
 #' @param base_theme Optional complete [ggplot2::theme()] used as the
-#'   foundation; the panel chrome is re-applied on top so a project theme
-#'   cannot clobber the layout. `NULL` uses `theme_bulki()` when available and
-#'   [ggplot2::theme_minimal()] otherwise.
-#' @return A `ggplot`.
-#' @seealso [gs_ranks()], [gs_test()], [gs_leading_edge()]
+#'   foundation for every panel; the panel chrome is re-applied on top so a
+#'   project theme cannot clobber the layout. `NULL` uses [theme_bulki()].
+#' @return A `patchwork` of three panels, carrying a `grs_restyle` attribute:
+#'   `function(es_ylim, legend_position, xticks, rug_ylabels, panel_heights,
+#'   base_theme, base_size, ...)` returning a freshly composed figure.
+#' @seealso [gs_ranks()], [gs_test()], [gs_leading_edge()], [gs_palette()]
 #' @importFrom rlang .data
 #' @importFrom fgsea plotEnrichmentData
 #' @examples
@@ -94,21 +106,22 @@ gs_plot_running <- function(x,
                             labels = NULL,
                             palette = NULL,
                             panel_heights = c(2.4, 0.7, 0.9),
+                            es_ylim = NULL,
                             gsea_param = 1,
                             metric_label = "Ranked metric",
                             title = NULL,
                             base_size = 14,
                             max_name_length = 40,
-                            legend_position = c("right", "bottom", "inside",
+                            legend_position = c("inside", "right", "bottom",
                                                 "none"),
                             legend_pos = c(0.98, 0.98),
+                            xticks = c("bottom", "all"),
+                            rug_ylabels = FALSE,
                             base_theme = NULL) {
   legend_position <- match.arg(legend_position)
-  if (!is.numeric(panel_heights) || length(panel_heights) != 3L ||
-        any(!is.finite(panel_heights)) || any(panel_heights <= 0)) {
-    stop("`panel_heights` must be three positive finite numbers ",
-         "(ES : ticks : metric).", call. = FALSE)
-  }
+  xticks <- match.arg(xticks)
+  .grs_check_heights(panel_heights)
+  .grs_check_ylim(es_ylim)
 
   ranks <- .grs_ranks(x, ranks)
   sets <- .grs_sets(x, db)
@@ -116,76 +129,155 @@ gs_plot_running <- function(x,
   set_labels <- .grs_labels(x, ids, labels, max_name_length)
   pal <- .grs_palette(palette, ids)
 
-  panels <- .grs_panel_levels(metric_label)
+  axis_labels <- .grs_panel_levels(metric_label)
   curves <- .grs_curves(sets[ids], ranks, gsea_param)
+  frames <- .grs_frames(curves, ids)
 
-  es_df <- do.call(rbind, lapply(ids, function(id) {
+  # One x range for all three panels, pinned rather than inferred.
+  # plotEnrichmentData()'s curve carries sentinel ranks at 0 and n + 1 while
+  # the ticks and the metric run 1..n, so per-panel limits differ by a rank at
+  # each end -- enough to visibly offset a tick from the curve feature it
+  # marks. A facet shared one scale by construction; real panels have to be
+  # told.
+  xlim <- range(c(frames$es$rank, frames$ticks$rank, frames$stats$rank))
+
+  # The composer is a closure over the computed curve data, so a restyle
+  # re-lays-out the figure without re-running fgsea.
+  compose <- function(es_ylim = NULL,
+                      legend_position = "inside",
+                      xticks = "bottom",
+                      rug_ylabels = FALSE,
+                      panel_heights = c(2.4, 0.7, 0.9),
+                      base_theme = NULL,
+                      base_size = 14,
+                      ...) {
+    legend_position <- match.arg(
+      legend_position, c("inside", "right", "bottom", "none")
+    )
+    xticks <- match.arg(xticks, c("bottom", "all"))
+    .grs_check_heights(panel_heights)
+    .grs_check_ylim(es_ylim)
+    show_x <- identical(xticks, "all")
+    base <- base_theme %||% .grs_default_theme(base_size)
+
+    es <- .grs_panel_es(
+      frames$es, pal, set_labels, es_ylim, xlim, axis_labels[["es"]], title,
+      base, show_x, legend_position, legend_pos
+    )
+    ticks <- .grs_panel_ticks(
+      frames$ticks, pal, length(ids), xlim, axis_labels[["ticks"]], base,
+      show_x, rug_ylabels
+    )
+    metric <- .grs_panel_metric(
+      frames$stats, xlim, axis_labels[["stats"]], base, show_x = TRUE
+    )
+    .grs_compose(list(es, ticks, metric), panel_heights, legend_position)
+  }
+
+  out <- compose(
+    es_ylim = es_ylim, legend_position = legend_position, xticks = xticks,
+    rug_ylabels = rug_ylabels, panel_heights = panel_heights,
+    base_theme = base_theme, base_size = base_size
+  )
+  # A styling contract that is only prose gets dropped in a refactor and the
+  # consumer degrades silently. This attribute is asserted by the test suite.
+  attr(out, "grs_restyle") <- compose
+  out
+}
+
+# ---- internals (prefix `.grs_`) ---------------------------------------------
+
+#' Default ES : ticks : metric height ratio
+#'
+#' The single source of truth for panel proportions.
+#'
+#' @return A length-3 numeric vector.
+#' @keywords internal
+.GRS_PANEL_HEIGHTS <- c(2.4, 0.7, 0.9)
+
+#' Validate `panel_heights`
+#'
+#' @param panel_heights The renderer's `panel_heights`.
+#' @return `TRUE`, invisibly.
+#' @keywords internal
+.grs_check_heights <- function(panel_heights) {
+  if (!is.numeric(panel_heights) || length(panel_heights) != 3L ||
+        any(!is.finite(panel_heights)) || any(panel_heights <= 0)) {
+    stop("`panel_heights` must be three positive finite numbers ",
+         "(ES : ticks : metric).", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+#' Validate `es_ylim`
+#'
+#' @param es_ylim The renderer's `es_ylim`, possibly `NULL`.
+#' @return `TRUE`, invisibly.
+#' @keywords internal
+.grs_check_ylim <- function(es_ylim) {
+  if (is.null(es_ylim)) return(invisible(TRUE))
+  if (!is.numeric(es_ylim) || length(es_ylim) != 2L ||
+        any(!is.finite(es_ylim)) || es_ylim[[1L]] >= es_ylim[[2L]]) {
+    stop("`es_ylim` must be two finite increasing numbers, or NULL.",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+#' Reshape [fgsea::plotEnrichmentData()] output into per-panel frames
+#'
+#' Tick lanes span their whole lane: lane `i` covers `[n - i, n - i + 1]`, so
+#' with the tick panel's limits pinned to `c(0, n)` every tick is `1/n` of that
+#' panel's height regardless of how many pathways are drawn. The previous
+#' version used `[n - i + 0.2, n - i + 0.8]` inside a rescaled window, which
+#' left each tick at roughly 2% of the panel and made them unreadable.
+#'
+#' @param curves Named list of `plotEnrichmentData()` outputs.
+#' @param ids Character vector of pathway ids, in plotting order.
+#' @return A list of three data frames: `es`, `ticks`, `stats`.
+#' @keywords internal
+.grs_frames <- function(curves, ids) {
+  n <- length(ids)
+  es <- do.call(rbind, lapply(ids, function(id) {
     d <- curves[[id]]$curve
     data.frame(rank = d$rank, y = d$ES, pathway_id = id,
                stringsAsFactors = FALSE)
   }))
-  tick_df <- do.call(rbind, lapply(seq_along(ids), function(i) {
+  ticks <- do.call(rbind, lapply(seq_along(ids), function(i) {
     d <- curves[[ids[i]]]$ticks
-    n <- length(ids)
-    data.frame(rank = d$rank, ymin = n - i + 0.2, ymax = n - i + 0.8,
+    data.frame(rank = d$rank, ymin = n - i, ymax = n - i + 1,
                pathway_id = ids[i], stringsAsFactors = FALSE)
   }))
-  stat_df <- curves[[ids[1L]]]$stats
-  stat_df <- data.frame(rank = stat_df$rank, y = stat_df$stat,
-                        stringsAsFactors = FALSE)
-
-  win <- .grs_windows(
-    list(es = range(c(0, es_df$y)),
-         ticks = c(0, length(ids)),
-         stats = range(c(0, stat_df$y))),
-    panel_heights
+  st <- curves[[ids[1L]]]$stats
+  list(
+    es = es,
+    ticks = ticks,
+    stats = data.frame(rank = st$rank, y = st$stat, stringsAsFactors = FALSE)
   )
-  pad_df <- do.call(rbind, lapply(names(win), function(k) {
-    data.frame(panel = k, rank = 1, y = c(0, win[[k]]$h),
-               stringsAsFactors = FALSE)
-  }))
-  pad_df$panel <- factor(pad_df$panel, levels = names(panels))
+}
 
-  es_df$y <- .grs_map(es_df$y, win$es)
-  tick_df$ymin <- .grs_map(tick_df$ymin, win$ticks)
-  tick_df$ymax <- .grs_map(tick_df$ymax, win$ticks)
-  stat_df$y <- .grs_map(stat_df$y, win$stats)
-  es_df$panel <- factor("es", levels = names(panels))
-  tick_df$panel <- factor("ticks", levels = names(panels))
-  stat_df$panel <- factor("stats", levels = names(panels))
-  stat_df$base <- .grs_map(0, win$stats)
-  zero_df <- data.frame(
-    panel = factor(c("es", "stats"), levels = names(panels)),
-    y = c(.grs_map(0, win$es), .grs_map(0, win$stats))
-  )
-
-  p <- ggplot() +
-    geom_blank(
-      data = pad_df,
-      mapping = aes(x = .data$rank, y = .data$y)
-    ) +
-    geom_hline(
-      data = zero_df,
-      mapping = aes(yintercept = .data$y),
-      colour = "grey60", linewidth = 0.3
-    ) +
-    geom_ribbon(
-      data = stat_df,
-      mapping = aes(x = .data$rank, ymin = .data$base, ymax = .data$y),
-      fill = "grey70", colour = "transparent"
-    ) +
-    geom_segment(
-      data = tick_df,
-      mapping = aes(x = .data$rank, xend = .data$rank,
-                    y = .data$ymin, yend = .data$ymax,
-                    colour = .data$pathway_id),
-      linewidth = 0.35
-    ) +
-    geom_line(
-      data = es_df,
-      mapping = aes(x = .data$rank, y = .data$y, colour = .data$pathway_id),
-      linewidth = 0.7
-    ) +
+#' The enrichment-score panel
+#'
+#' Owns the single colour scale and the legend. `es_ylim` is applied with
+#' [ggplot2::coord_cartesian()], which zooms without dropping data.
+#'
+#' @param df The `es` frame from [.grs_frames()].
+#' @param pal Named colour vector.
+#' @param set_labels Named legend labels.
+#' @param es_ylim Optional length-2 numeric, or `NULL`.
+#' @param xlim Length-2 numeric x range shared by all three panels.
+#' @param y_lab,title Axis label and plot title.
+#' @param base Foundation theme.
+#' @param show_x Logical. Draw x-axis text and ticks.
+#' @param legend_position,legend_pos Legend placement.
+#' @return A `ggplot`.
+#' @keywords internal
+.grs_panel_es <- function(df, pal, set_labels, es_ylim, xlim, y_lab, title,
+                          base, show_x, legend_position, legend_pos) {
+  p <- ggplot(df, aes(x = .data$rank, y = .data$y,
+                      colour = .data$pathway_id)) +
+    geom_hline(yintercept = 0, colour = "grey60", linewidth = 0.3) +
+    geom_line(linewidth = 0.7) +
     scale_colour_manual(
       values = pal,
       breaks = names(pal),
@@ -193,19 +285,150 @@ gs_plot_running <- function(x,
       name = NULL
     ) +
     scale_x_continuous(expand = expansion(mult = c(0, 0))) +
-    scale_y_continuous(
-      expand = expansion(mult = c(0, 0)),
-      breaks = .grs_break_fun(win)
-    ) +
-    facet_grid(rows = vars(.data$panel), scales = "free_y",
-               space = "free_y", switch = "y",
-               labeller = as_labeller(panels)) +
-    labs(x = "Rank in ranked gene list", y = NULL, title = title)
-
-  p + .grs_theme(base_theme, base_size, legend_position, legend_pos)
+    labs(x = NULL, y = y_lab, title = title) +
+    coord_cartesian(xlim = xlim, ylim = es_ylim)
+  p <- p + .grs_panel_theme(base) + .grs_legend_theme(legend_position,
+                                                      legend_pos)
+  if (!isTRUE(show_x)) p <- p + .grs_hide_x()
+  p
 }
 
-# ---- internals (prefix `.grs_`) ---------------------------------------------
+#' The gene-tick panel
+#'
+#' @param df The `ticks` frame from [.grs_frames()].
+#' @param pal Named colour vector.
+#' @param n Number of pathways, which is the panel's y extent.
+#' @param xlim Length-2 numeric x range shared by all three panels.
+#' @param y_lab Axis label.
+#' @param base Foundation theme.
+#' @param show_x Logical. Draw x-axis text and ticks.
+#' @param rug_ylabels Logical. Show the lane indices.
+#' @return A `ggplot`.
+#' @keywords internal
+.grs_panel_ticks <- function(df, pal, n, xlim, y_lab, base, show_x,
+                             rug_ylabels) {
+  # One pathway needs no colour to tell it apart, and black reads better than
+  # an arbitrary hue -- the pre-package renderer did the same.
+  if (n == 1L) pal <- stats::setNames(rep("black", length(pal)), names(pal))
+  p <- ggplot(df) +
+    geom_segment(
+      aes(x = .data$rank, xend = .data$rank,
+          y = .data$ymin, yend = .data$ymax,
+          colour = .data$pathway_id),
+      linewidth = 0.35
+    ) +
+    scale_colour_manual(values = pal, breaks = names(pal), guide = "none") +
+    scale_x_continuous(expand = expansion(mult = c(0, 0))) +
+    scale_y_continuous(
+      limits = c(0, n),
+      breaks = seq_len(n) - 0.5,
+      labels = as.character(seq_len(n)),
+      expand = expansion(mult = c(0, 0))
+    ) +
+    coord_cartesian(xlim = xlim) +
+    labs(x = NULL, y = y_lab) +
+    .grs_panel_theme(base) +
+    theme(legend.position = "none")
+  if (!isTRUE(rug_ylabels)) {
+    p <- p + theme(axis.text.y = element_blank(),
+                   axis.ticks.y = element_blank())
+  }
+  if (!isTRUE(show_x)) p <- p + .grs_hide_x()
+  p
+}
+
+#' The ranked-metric panel
+#'
+#' @param df The `stats` frame from [.grs_frames()].
+#' @param xlim Length-2 numeric x range shared by all three panels.
+#' @param y_lab Axis label.
+#' @param base Foundation theme.
+#' @param show_x Logical. Draw x-axis text and ticks.
+#' @return A `ggplot`.
+#' @keywords internal
+.grs_panel_metric <- function(df, xlim, y_lab, base, show_x) {
+  p <- ggplot(df, aes(x = .data$rank)) +
+    geom_hline(yintercept = 0, colour = "grey60", linewidth = 0.3) +
+    geom_ribbon(aes(ymin = 0, ymax = .data$y),
+                fill = "grey70", colour = "transparent") +
+    scale_x_continuous(expand = expansion(mult = c(0, 0))) +
+    scale_y_continuous(n.breaks = 4) +
+    coord_cartesian(xlim = xlim) +
+    labs(x = "Rank in ranked gene list", y = y_lab) +
+    .grs_panel_theme(base) +
+    theme(legend.position = "none")
+  if (!isTRUE(show_x)) p <- p + .grs_hide_x()
+  p
+}
+
+#' Compose the three panels
+#'
+#' @param panels List of three `ggplot`s, top to bottom.
+#' @param panel_heights Length-3 numeric height ratio.
+#' @param legend_position Legend placement.
+#' @return A `patchwork`.
+#' @keywords internal
+.grs_compose <- function(panels, panel_heights, legend_position) {
+  pw <- patchwork::wrap_plots(panels, ncol = 1L, heights = panel_heights)
+  if (legend_position %in% c("right", "bottom")) {
+    pw <- pw + patchwork::plot_layout(guides = "collect")
+    pw <- pw & theme(legend.position = legend_position)
+  }
+  pw
+}
+
+#' Per-panel chrome, re-applied over any foundation theme
+#'
+#' @param base Foundation theme.
+#' @return A list of theme objects, applied in order.
+#' @keywords internal
+.grs_panel_theme <- function(base) {
+  list(
+    base,
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      # Panels sit directly above one another, so per-panel top/bottom margins
+      # would read as gaps in what should be one figure.
+      plot.margin = margin(2, 10, 2, 5)
+    )
+  )
+}
+
+#' Legend placement
+#'
+#' @param legend_position One of `"inside"`, `"right"`, `"bottom"`, `"none"`.
+#' @param legend_pos Length-2 numeric inside-legend position.
+#' @return A ggplot2 theme.
+#' @keywords internal
+.grs_legend_theme <- function(legend_position, legend_pos) {
+  switch(
+    legend_position,
+    inside = theme(
+      legend.position = "inside",
+      legend.position.inside = legend_pos,
+      legend.justification = c(1, 1),
+      legend.background = element_rect(fill = "white", colour = "grey90"),
+      legend.key.size = unit(0.8, "lines"),
+      legend.key.spacing.y = unit(2, "pt")
+    ),
+    right = theme(legend.position = "right",
+                  legend.key.spacing.y = unit(2, "pt")),
+    bottom = theme(legend.position = "bottom",
+                   legend.key.spacing.y = unit(2, "pt")),
+    none = theme(legend.position = "none")
+  )
+}
+
+#' Hide the x axis on a panel that is not the bottom one
+#'
+#' @return A ggplot2 theme.
+#' @keywords internal
+.grs_hide_x <- function() {
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank())
+}
 
 #' Resolve the rank vector for [gs_plot_running()]
 #'
@@ -381,14 +604,10 @@ gs_plot_running <- function(x,
 .grs_palette <- function(palette, ids) {
   n <- length(ids)
   if (is.null(palette) || length(palette) == 0L) {
-    base_pal <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
-                  "#FFFF33", "#A65628", "#F781BF", "#999999")
-    vals <- if (n > length(base_pal)) {
-      grDevices::colorRampPalette(base_pal)(n)
-    } else {
-      base_pal[seq_len(n)]
-    }
-    return(stats::setNames(vals, ids))
+    # Assigned in sorted-id order, so the same id set always gets the same
+    # colours whatever order the caller asked for them in. Stability across
+    # *different* id sets needs gs_palette() over a fixed universe.
+    return(gs_palette(ids))
   }
   nm <- names(palette)
   if (!is.null(nm) && all(ids %in% nm)) {
@@ -401,10 +620,10 @@ gs_plot_running <- function(x,
   stats::setNames(rep(as.character(palette), length.out = n), ids)
 }
 
-#' Panel keys and their strip labels
+#' Panel keys and their axis labels
 #'
-#' @param metric_label Strip label for the ranked-metric panel.
-#' @return A named character vector, `panel key -> strip label`.
+#' @param metric_label Axis label for the ranked-metric panel.
+#' @return A named character vector, `panel key -> axis label`.
 #' @keywords internal
 .grs_panel_levels <- function(metric_label = "Ranked metric") {
   if (!is.character(metric_label) || length(metric_label) != 1L) {
@@ -438,119 +657,10 @@ gs_plot_running <- function(x,
   stats::setNames(out, names(sets))
 }
 
-#' Panel windows: exact panel heights without clipping any data
-#'
-#' `facet_grid(space = "free_y")` sizes a panel in proportion to its y range,
-#' and the natural ranges of an ES curve, a tick lane and a ranked metric have
-#' nothing to do with the proportions a reader wants. So each panel's data is
-#' mapped onto its own window `[0, panel_heights[k]]` -- a linear, invertible
-#' rescaling that clips nothing -- and the panel heights then come out exactly in
-#' the requested ratio. The axis still reads in original units, because
-#' [.grs_break_fun()] inverts the map and returns *named* breaks, which ggplot2
-#' uses as the labels.
-#'
-#' A 10% margin is added to the ES and metric ranges here rather than left to
-#' scale expansion, so the plotted window limits are exactly `c(0, h)` and each
-#' panel stays identifiable by them.
-#'
-#' @param ranges Named list of length-2 numeric natural ranges, in panel order.
-#' @param heights Length-3 numeric ratio.
-#' @return A named list, one entry per panel, each `list(lo =, hi =, h =)`.
-#' @keywords internal
-.grs_windows <- function(ranges, heights) {
-  heights <- as.numeric(heights) / sum(heights)
-  # Panels are told apart by their window height, so those must be distinct.
-  for (i in seq_along(heights)) {
-    while (any(abs(heights[-i] - heights[i]) < 1e-9)) {
-      heights[i] <- heights[i] + 1e-6
-    }
-  }
-  out <- lapply(seq_along(ranges), function(i) {
-    r <- as.numeric(ranges[[i]])
-    if (names(ranges)[i] != "ticks") {
-      pad <- max(diff(r), .Machine$double.eps) * 0.05
-      r <- c(r[1L] - pad, r[2L] + pad)
-    }
-    if (diff(r) <= 0) r <- r + c(-0.5, 0.5)
-    list(lo = r[1L], hi = r[2L], h = heights[[i]])
-  })
-  stats::setNames(out, names(ranges))
-}
-
-#' Map data values onto a panel window
-#'
-#' @param y Numeric vector in original units.
-#' @param w A window from [.grs_windows()].
-#' @return `y` rescaled onto `[0, w$h]`.
-#' @keywords internal
-.grs_map <- function(y, w) {
-  (y - w$lo) / (w$hi - w$lo) * w$h
-}
-
-#' Break function that restores original units panel by panel
-#'
-#' With `scales = "free_y"` every panel resolves its own breaks and a break
-#' function gets no panel context -- but each panel's limits are exactly
-#' `c(0, h)` (pinned by `geom_blank()` with zero expansion, heights made
-#' distinct in [.grs_windows()]), so the panel is identifiable from its limits
-#' alone. Breaks are chosen in original units, mapped into window space, and
-#' returned *named* with their original-unit labels. The tick panel's y index
-#' is meaningless, so it gets no breaks at all.
-#'
-#' @param win The output of [.grs_windows()].
-#' @return A function suitable for `scale_y_continuous(breaks = )`.
-#' @keywords internal
-.grs_break_fun <- function(win) {
-  function(limits) {
-    h <- max(as.numeric(limits))
-    key <- names(win)[which.min(vapply(win, function(w) abs(w$h - h),
-                                       numeric(1L)))]
-    if (identical(key, "ticks")) return(numeric(0))
-    w <- win[[key]]
-    b <- scales::extended_breaks()(c(w$lo, w$hi))
-    b <- b[b >= w$lo & b <= w$hi]
-    stats::setNames(.grs_map(b, w), format(b, trim = TRUE))
-  }
-}
-
-#' Panel theme and legend placement
-#'
-#' @param base_theme Optional complete theme used as the foundation.
-#' @param base_size Base font size, floored at 14.
-#' @param legend_position One of `"right"`, `"bottom"`, `"inside"`, `"none"`.
-#' @param legend_pos Length-2 numeric inside-legend position.
-#' @return A list of ggplot2 theme objects, applied in order.
-#' @keywords internal
-.grs_theme <- function(base_theme, base_size, legend_position, legend_pos) {
-  base_size <- max(base_size, 14)
-  base <- base_theme %||% .grs_default_theme(base_size)
-  chrome <- theme(
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank(),
-    strip.placement = "outside",
-    strip.background = element_blank(),
-    strip.text.y.left = element_text(angle = 90),
-    panel.spacing.y = unit(2, "pt"),
-    legend.position = if (legend_position == "inside") {
-      "inside"
-    } else {
-      legend_position
-    },
-    legend.position.inside = legend_pos,
-    legend.justification = if (legend_position == "inside") {
-      c(1, 1)
-    } else {
-      "center"
-    },
-    legend.key.spacing.y = unit(2, "pt")
-  )
-  list(base, chrome)
-}
-
 #' Default foundation theme
 #'
-#' Uses `theme_bulki()` when the package provides it (B3's renderer theme) and
-#' falls back to [ggplot2::theme_minimal()] so this file has no copy of it.
+#' Uses `theme_bulki()` when the package provides it and falls back to
+#' [ggplot2::theme_minimal()] so this file has no copy of it.
 #'
 #' @param base_size Base font size.
 #' @return A ggplot2 theme.

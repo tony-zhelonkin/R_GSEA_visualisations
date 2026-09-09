@@ -15,7 +15,8 @@ test_that("all covers the optional union and excludes development packages", {
   expected <- c(
     "edgeR", "limma", "AnnotationDbi", "org.Hs.eg.db", "org.Mm.eg.db",
     "babelgene", "biomaRt", "homologene", "GSVA", "gatom", "mwcsr",
-    "igraph", "qs2", "BiocParallel", "patchwork", "plotly", "readxl", "yaml"
+    # patchwork became a hard Import at 1.1.0, so it must NOT appear here.
+    "igraph", "qs2", "BiocParallel", "plotly", "readxl", "yaml"
   )
 
   expect_identical(all$package, expected)

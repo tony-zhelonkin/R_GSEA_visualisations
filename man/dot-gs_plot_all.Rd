@@ -10,8 +10,8 @@
   name = "gsea",
   top_n = 20,
   padj_cutoff = 0.05,
-  width = 8,
-  height = 6,
+  width = NULL,
+  height = NULL,
   verbose = FALSE
 )
 }
@@ -26,9 +26,10 @@
 
 \item{padj_cutoff}{FDR threshold for highlighting and for the log.}
 
-\item{width}{Figure width in inches.}
+\item{width}{Figure width in inches, or \code{NULL} to take a per-database
+suggestion from \code{\link[=gs_plot_size]{gs_plot_size()}}.}
 
-\item{height}{Figure height in inches.}
+\item{height}{Figure height in inches, or \code{NULL} for the same.}
 
 \item{verbose}{Logical. Report progress with \code{\link[=message]{message()}}.}
 }

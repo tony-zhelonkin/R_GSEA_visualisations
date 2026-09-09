@@ -13,7 +13,7 @@
 A ggplot2 theme.
 }
 \description{
-Uses \code{theme_bulki()} when the package provides it (B3's renderer theme) and
-falls back to \code{\link[ggplot2:theme_minimal]{ggplot2::theme_minimal()}} so this file has no copy of it.
+Uses \code{theme_bulki()} when the package provides it and falls back to
+\code{\link[ggplot2:theme_minimal]{ggplot2::theme_minimal()}} so this file has no copy of it.
 }
 \keyword{internal}

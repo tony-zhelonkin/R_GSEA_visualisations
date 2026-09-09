@@ -24,6 +24,11 @@
 #'   (default) to use the plot's `gs_source` attribute, falling back to
 #'   `plot$data`.
 #' @param table Logical. Write the source table. `FALSE` writes only images.
+#' @param rescale_fonts Logical. Scale text with the canvas via
+#'   [gs_scale_fonts()], so a figure asked for at 9 x 10 in does not carry the
+#'   same point sizes as one at 7 x 5. `TRUE` by default.
+#' @param base_font_size Numeric. Reference point size at the 7 x 5 in
+#'   reference canvas, used only when `rescale_fonts = TRUE`.
 #' @return The written paths, invisibly.
 #' @examples
 #' db <- structure(
@@ -38,9 +43,10 @@
 #' gs_save(p, file.path(tempdir(), "figures", "demo_dot"))
 #' @export
 gs_save <- function(plot, path, width = 8, height = 6, dpi = 300,
-                    formats = c("pdf", "png"), data = NULL, table = TRUE) {
-  if (!inherits(plot, "ggplot")) {
-    stop("`plot` must be a ggplot object; got ",
+                    formats = c("pdf", "png"), data = NULL, table = TRUE,
+                    rescale_fonts = TRUE, base_font_size = 10) {
+  if (!inherits(plot, "ggplot") && !inherits(plot, "patchwork")) {
+    stop("`plot` must be a ggplot or patchwork object; got ",
          paste(class(plot), collapse = "/"), ".", call. = FALSE)
   }
   if (!is.character(path) || length(path) != 1L || !nzchar(path)) {
@@ -57,10 +63,21 @@ gs_save <- function(plot, path, width = 8, height = 6, dpi = 300,
   stem <- if (ext %in% known) sub("\\.[^.]+$", "", path) else path
   ensure_parent_dir(stem)
 
+  # Font scaling before writing, and never in the renderer: the renderer does
+  # not know the canvas. Sizes are read off the object being drawn, so the
+  # source table below is still taken from the unscaled plot.
+  drawn <- if (isTRUE(rescale_fonts)) {
+    gs_scale_fonts(plot, width = width, height = height,
+                   base_font_size = base_font_size)
+  } else {
+    plot
+  }
+
   written <- character(0)
   for (fmt in formats) {
     f <- paste0(stem, ".", fmt)
-    ggsave(f, plot = plot, width = width, height = height, dpi = dpi)
+    ggsave(f, plot = drawn, width = width, height = height, dpi = dpi,
+           units = "in")
     written <- c(written, f)
   }
 

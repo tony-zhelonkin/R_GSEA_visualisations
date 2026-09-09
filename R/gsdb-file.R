@@ -145,8 +145,12 @@ gsdb_from_file <- function(path,
   desc <- trimws(vapply(fields, `[[`, character(1L), 2L))
   sets <- lapply(fields, function(f) trimws(f[-c(1, 2)]))
   names(sets) <- ids
-  desc[is.na(desc) | !nzchar(desc) | tolower(desc) %in% c("na", "null")] <-
-    ids[is.na(desc) | !nzchar(desc) | tolower(desc) %in% c("na", "null")]
+  # A GMT description field is mandatory, so writers that have nothing to say
+  # put a placeholder there. "-" and "." are the common ones and both used to
+  # pass through, which put a literal dash on every bar of a figure.
+  blank <- is.na(desc) | !nzchar(desc) |
+    tolower(desc) %in% c("na", "null", "-", ".", "--", "n/a")
+  desc[blank] <- ids[blank]
   list(sets = sets, labels = stats::setNames(desc, ids))
 }
 

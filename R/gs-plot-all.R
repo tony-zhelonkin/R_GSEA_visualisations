@@ -15,13 +15,14 @@
 #' @param name Stem prepended to every file name.
 #' @param top_n Number of pathways per plot.
 #' @param padj_cutoff FDR threshold for highlighting and for the log.
-#' @param width Figure width in inches.
-#' @param height Figure height in inches.
+#' @param width Figure width in inches, or `NULL` to take a per-database
+#'   suggestion from [gs_plot_size()].
+#' @param height Figure height in inches, or `NULL` for the same.
 #' @param verbose Logical. Report progress with [message()].
 #' @return A character vector of every written path, invisibly.
 #' @keywords internal
 .gs_plot_all <- function(x, out_dir, name = "gsea", top_n = 20,
-                         padj_cutoff = 0.05, width = 8, height = 6,
+                         padj_cutoff = 0.05, width = NULL, height = NULL,
                          verbose = FALSE) {
   .gs_plot_check_result(x)
   if (!is.character(out_dir) || length(out_dir) != 1L || !nzchar(out_dir)) {
@@ -47,6 +48,14 @@
       message("Rendering ", db, " (", nrow(part), " pathways) into ", db_dir)
     }
 
+    # Sizing is per-database when the caller did not fix it: a Reactome panel
+    # needs more room than a Hallmark one, and one flat canvas cramps whichever
+    # database has the most sets.
+    size_for <- function(type) {
+      s <- gs_plot_size(type, database = db)
+      list(width = width %||% s$width, height = height %||% s$height)
+    }
+
     specs <- list(
       list(
         suffix = "_up_dot",
@@ -55,7 +64,7 @@
                       highlight = padj_cutoff, limits = shared_limits,
                       title = paste0(db, ": up"))
         },
-        height = height
+        size = size_for("dot")
       ),
       list(
         suffix = "_down_dot",
@@ -64,7 +73,7 @@
                       highlight = padj_cutoff, limits = shared_limits,
                       title = paste0(db, ": down"))
         },
-        height = height
+        size = size_for("dot")
       ),
       list(
         suffix = "_facet_dot",
@@ -73,7 +82,7 @@
                       highlight = padj_cutoff, limits = shared_limits,
                       title = db)
         },
-        height = height * 1.4
+        size = size_for("facet")
       ),
       list(
         suffix = "_bar",
@@ -81,14 +90,14 @@
           gs_plot_bar(part, top_n = top_n, highlight = padj_cutoff,
                       limits = shared_limits, title = db)
         },
-        height = height
+        size = size_for("bar")
       )
     )
 
     for (spec in specs) {
       written <- c(written, gs_save(
         spec$plot(), paste0(stem, spec$suffix),
-        width = width, height = spec$height
+        width = spec$size$width, height = spec$size$height
       ))
     }
     written <- c(
