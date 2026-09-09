@@ -52,6 +52,13 @@ p-values are not independent across the compendium. There is no \code{padj}
 column, and applying \code{\link[stats:p.adjust]{stats::p.adjust()}} to the compendium is invalid;
 \code{p_value} is for ranking. The \code{provenance} attribute records the reference
 snapshot.
+
+The \code{skipped} attribute is a data frame of datasets that failed
+validation and were excluded, with columns \code{chunk}, \code{element}, \code{gse} and
+\code{reason}. It is zero-row for a clean sweep. Two of roughly 42,500 \code{mmu}
+datasets carry a missing \code{totalVar}, and before this was a skip the whole
+compendium aborted on them. A chunk in which \emph{nothing} validates is still
+an error, because that is indistinguishable from a broken snapshot.
 }
 \description{
 Scores each named Entrez query against every dataset for one species. With

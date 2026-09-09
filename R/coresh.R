@@ -373,7 +373,8 @@ coresh_match <- function(obj, query, pvalues = FALSE,
 #' @param sample_size Positive whole number passed to [coresh_match()].
 #' @param seed Whole-number RNG seed passed to [coresh_match()].
 #' @param eps Positive numeric tolerance passed to [coresh_match()].
-#' @return A search-shaped tibble without ranks.
+#' @return A search-shaped tibble without ranks, carrying a `skipped`
+#'   attribute: a data frame of the datasets that failed validation.
 #' @keywords internal
 .coresh_score_file <- function(path, queries, pvalues, sample_size, seed, eps) {
   chunk <- .coresh_read_chunk(path)
@@ -381,6 +382,46 @@ coresh_match <- function(obj, query, pvalues = FALSE,
     stop("`path` did not contain a non-empty CoReSh object list: ", path,
          ". Rebuild or refresh the chunk snapshot.", call. = FALSE)
   }
+
+  # Chunks are unnamed lists, so iterate by position. Validating once per
+  # dataset rather than once per query also avoids repeating the work.
+  reasons <- vapply(chunk, function(obj) {
+    tryCatch({
+      .coresh_validate_object(obj)
+      NA_character_
+    }, error = function(e) conditionMessage(e))
+  }, character(1L))
+  bad <- !is.na(reasons)
+
+  # A chunk where nothing validates is indistinguishable from a broken chunk
+  # directory, so that stays an error. Individual bad datasets are skipped,
+  # counted and named -- never silently dropped, and never swallowed whole.
+  if (all(bad)) {
+    stop("No dataset in the chunk at `path` passed validation: ", path,
+         ". First reason: ", reasons[[1L]],
+         " Rebuild or refresh the chunk snapshot.", call. = FALSE)
+  }
+
+  skipped <- if (any(bad)) {
+    data.frame(
+      chunk = basename(as.character(path)),
+      element = which(bad),
+      gse = vapply(chunk[bad], function(obj) {
+        value <- tryCatch(obj$gseId, error = function(e) NULL)
+        if (length(value) == 1L && is.atomic(value)) {
+          as.character(value)
+        } else {
+          NA_character_
+        }
+      }, character(1L)),
+      reason = unname(reasons[bad]),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    .coresh_empty_skipped()
+  }
+
+  chunk <- chunk[!bad]
   rows <- lapply(names(queries), function(query_name) {
     scored <- lapply(
       chunk,
@@ -397,7 +438,20 @@ coresh_match <- function(obj, query, pvalues = FALSE,
       "query_name", "gse", "gpl", "pct_var", "p_value", "log2err", "size"
     )]
   })
-  dplyr::bind_rows(rows)
+  out <- dplyr::bind_rows(rows)
+  attr(out, "skipped") <- skipped
+  out
+}
+
+#' Empty CoReSh skipped-dataset frame
+#'
+#' @return A zero-row data frame with the skip-report schema.
+#' @keywords internal
+.coresh_empty_skipped <- function() {
+  data.frame(
+    chunk = character(), element = integer(), gse = character(),
+    reason = character(), stringsAsFactors = FALSE
+  )
 }
 
 #' Search the CoReSh compendium
@@ -438,6 +492,13 @@ coresh_match <- function(obj, query, pvalues = FALSE,
 #'   column, and applying [stats::p.adjust()] to the compendium is invalid;
 #'   `p_value` is for ranking. The `provenance` attribute records the reference
 #'   snapshot.
+#'
+#'   The `skipped` attribute is a data frame of datasets that failed
+#'   validation and were excluded, with columns `chunk`, `element`, `gse` and
+#'   `reason`. It is zero-row for a clean sweep. Two of roughly 42,500 `mmu`
+#'   datasets carry a missing `totalVar`, and before this was a skip the whole
+#'   compendium aborted on them. A chunk in which *nothing* validates is still
+#'   an error, because that is indistinguishable from a broken snapshot.
 #' @examples
 #' \dontrun{
 #' hits <- coresh_search(
@@ -531,6 +592,20 @@ coresh_search <- function(queries, chunk_dir = NULL, species = "human",
     )
   }
 
+  # Report skipped datasets as an attribute AND a message: a caller who ignores
+  # the attribute still leaves the count in the run log, so a partial sweep can
+  # never be mistaken for a complete one.
+  skipped <- dplyr::bind_rows(lapply(pieces, function(x) {
+    attr(x, "skipped") %||% .coresh_empty_skipped()
+  }))
+  if (nrow(skipped)) {
+    named <- stats::na.omit(unique(skipped$gse))
+    message("coresh_search(): skipped ", nrow(skipped),
+            " dataset(s) that failed validation",
+            if (length(named)) paste0(": ", paste(named, collapse = ", ")) else "",
+            ". See attr(result, \"skipped\") for the full report.")
+  }
+
   unranked <- dplyr::bind_rows(pieces)
   ranked <- lapply(query_names, function(query_name) {
     part <- unranked[unranked$query_name == query_name, , drop = FALSE]
@@ -555,6 +630,7 @@ coresh_search <- function(queries, chunk_dir = NULL, species = "human",
   attr(ranked, "provenance") <- .coresh_provenance(
     resolved, code, length(paths)
   )
+  attr(ranked, "skipped") <- skipped
   ranked
 }
 

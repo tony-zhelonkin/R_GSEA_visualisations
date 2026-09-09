@@ -227,3 +227,58 @@ test_that("the hemoglobin rule keeps genes that merely start with HB", {
   )
   expect_identical(out, "KEEP")
 })
+
+# --- Defect found by the G5 cross-check ------------------------------------
+# MSigDB ships retired symbols. HALLMARK_HYPOXIA lists ILVBL, the previous
+# symbol for HACL2 (Entrez 10994); a SYMBOL-only lookup dropped it, producing a
+# constant size offset of -3 against the reference implementation.
+
+test_that("gene_to_entrez() resolves a retired symbol through the alias table", {
+  skip_if_not_installed("AnnotationDbi")
+  skip_if_not_installed("org.Hs.eg.db")
+
+  expect_message(
+    mapped <- gene_to_entrez("ILVBL"),
+    "alias table"
+  )
+  expect_identical(mapped, 10994L)
+})
+
+test_that("gene_to_entrez(alias_fallback = FALSE) keeps the strict behaviour", {
+  skip_if_not_installed("AnnotationDbi")
+  skip_if_not_installed("org.Hs.eg.db")
+
+  # The pre-1.1.0 behaviour stays reachable, so a caller who needs current
+  # symbols only is not forced through the alias table.
+  expect_warning(
+    mapped <- gene_to_entrez("ILVBL", alias_fallback = FALSE),
+    "1/1 symbols failed to map: ILVBL"
+  )
+  expect_identical(mapped, integer(0L))
+})
+
+test_that("a current symbol wins over the same string as another gene's alias", {
+  skip_if_not_installed("AnnotationDbi")
+  skip_if_not_installed("org.Hs.eg.db")
+
+  # TP53 is a current symbol; the alias pass must never override a live hit.
+  expect_identical(gene_to_entrez("TP53"), 7157L)
+})
+
+test_that("the unmapped warning still fires for genuinely unknown symbols", {
+  skip_if_not_installed("AnnotationDbi")
+  skip_if_not_installed("org.Hs.eg.db")
+
+  expect_warning(
+    mapped <- gene_to_entrez(c("TP53", "NOT_A_REAL_GENE")),
+    "1/2 symbols failed to map: NOT_A_REAL_GENE"
+  )
+  expect_identical(mapped, 7157L)
+})
+
+test_that("gene_to_entrez() validates alias_fallback", {
+  expect_error(gene_to_entrez("TP53", alias_fallback = NA),
+               "`alias_fallback` must be TRUE or FALSE")
+  expect_error(gene_to_entrez("TP53", alias_fallback = "yes"),
+               "`alias_fallback` must be TRUE or FALSE")
+})

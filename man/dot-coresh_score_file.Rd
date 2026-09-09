@@ -20,7 +20,8 @@
 \item{eps}{Positive numeric tolerance passed to \code{\link[=coresh_match]{coresh_match()}}.}
 }
 \value{
-A search-shaped tibble without ranks.
+A search-shaped tibble without ranks, carrying a \code{skipped}
+attribute: a data frame of the datasets that failed validation.
 }
 \description{
 Score one CoReSh chunk file

@@ -4,7 +4,12 @@
 \alias{gene_to_entrez}
 \title{Convert gene symbols to Entrez identifiers}
 \usage{
-gene_to_entrez(symbols, species = "human", multi_vals = "first")
+gene_to_entrez(
+  symbols,
+  species = "human",
+  multi_vals = "first",
+  alias_fallback = TRUE
+)
 }
 \arguments{
 \item{symbols}{Character vector of gene symbols.}
@@ -16,6 +21,11 @@ alternatively \code{"mouse"}, \code{"Mus musculus"}, or \code{"mmu"}.}
 \code{"filter"}, or \code{"asNA"}, passed to \code{\link[AnnotationDbi:mapIds]{AnnotationDbi::mapIds()}}. Strategies
 that return list columns are not supported because this function always
 returns an integer vector.}
+
+\item{alias_fallback}{Logical(1). Retry symbols that fail the current-symbol
+lookup against the alias table. An alias resolved this way is reported by
+message, never silently, and an alias that is ambiguous across genes is
+named in that message.}
 }
 \value{
 An unnamed integer vector of mapped Entrez identifiers. Unmapped
@@ -26,6 +36,19 @@ Maps human or mouse gene symbols through the corresponding Bioconductor
 organism annotation package. Unmapped symbols produce a warning that names
 at most the first 20 failures and are dropped from the result. Mapped values
 retain their input order, including repeated symbols.
+}
+\details{
+Symbols that no longer match a current symbol are retried against the alias
+table when \code{alias_fallback = TRUE}. MSigDB ships retired symbols, so without
+this a set silently loses genes: \code{HALLMARK_HYPOXIA} lists \code{ILVBL}, the
+previous symbol for \code{HACL2}, and a symbol-only lookup drops it.
+
+Two deliberate non-goals, recorded because they make this function resolve
+\emph{fewer} identifiers than some reference implementations, and that is a
+choice rather than an oversight. Readthrough transcripts (for example
+\code{TPD52-MRPS28}) and uncharacterized loci (\code{LOC128125814}) are not matched: a
+readthrough is arguably not the gene, and neither belongs in a gene-level
+query by default.
 }
 \examples{
 if (requireNamespace("AnnotationDbi", quietly = TRUE) &&

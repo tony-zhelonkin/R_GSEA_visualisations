@@ -18,12 +18,60 @@
   invisible(NULL)
 }
 
+#' Map keys through an organism annotation package
+#'
+#' Restricts `keys` to those the requested keytype actually knows before
+#' calling [AnnotationDbi::mapIds()]. Filtering first avoids two behaviours
+#' that make an unfiltered call unusable as a fallback: `mapIds()` errors
+#' outright when *no* key is valid, and emits an unsuppressible warning when
+#' only some are.
+#'
+#' @param db An `OrgDb` object.
+#' @param keys Character vector of unique keys.
+#' @param keytype,column Character(1) keytype to look up and column to return.
+#' @param multi_vals Passed to [AnnotationDbi::mapIds()] as `multiVals`.
+#' @return A named character vector of hits, possibly empty. Names are the
+#'   matched keys.
+#' @keywords internal
+.gene_ids_map <- function(db, keys, keytype, column, multi_vals) {
+  known <- tryCatch(
+    AnnotationDbi::keys(db, keytype = keytype),
+    error = function(e) character(0L)
+  )
+  keys <- keys[keys %in% known]
+  if (!length(keys)) return(stats::setNames(character(0L), character(0L)))
+
+  hits <- suppressMessages(suppressWarnings(AnnotationDbi::mapIds(
+    db, keys = keys, keytype = keytype, column = column,
+    multiVals = multi_vals
+  )))
+  if (is.list(hits)) {
+    return(stats::setNames(vapply(hits, function(x) {
+      x <- x[!is.na(x)]
+      if (length(x)) as.character(x[[1L]]) else NA_character_
+    }, character(1L)), names(hits)))
+  }
+  stats::setNames(as.character(hits), names(hits))
+}
+
 #' Convert gene symbols to Entrez identifiers
 #'
 #' Maps human or mouse gene symbols through the corresponding Bioconductor
 #' organism annotation package. Unmapped symbols produce a warning that names
 #' at most the first 20 failures and are dropped from the result. Mapped values
 #' retain their input order, including repeated symbols.
+#'
+#' Symbols that no longer match a current symbol are retried against the alias
+#' table when `alias_fallback = TRUE`. MSigDB ships retired symbols, so without
+#' this a set silently loses genes: `HALLMARK_HYPOXIA` lists `ILVBL`, the
+#' previous symbol for `HACL2`, and a symbol-only lookup drops it.
+#'
+#' Two deliberate non-goals, recorded because they make this function resolve
+#' *fewer* identifiers than some reference implementations, and that is a
+#' choice rather than an oversight. Readthrough transcripts (for example
+#' `TPD52-MRPS28`) and uncharacterized loci (`LOC128125814`) are not matched: a
+#' readthrough is arguably not the gene, and neither belongs in a gene-level
+#' query by default.
 #'
 #' @param symbols Character vector of gene symbols.
 #' @param species Character(1): `"human"`, `"Homo sapiens"`, or `"hsa"`;
@@ -32,6 +80,10 @@
 #'   `"filter"`, or `"asNA"`, passed to [AnnotationDbi::mapIds()]. Strategies
 #'   that return list columns are not supported because this function always
 #'   returns an integer vector.
+#' @param alias_fallback Logical(1). Retry symbols that fail the current-symbol
+#'   lookup against the alias table. An alias resolved this way is reported by
+#'   message, never silently, and an alias that is ambiguous across genes is
+#'   named in that message.
 #' @return An unnamed integer vector of mapped Entrez identifiers. Unmapped
 #'   inputs are omitted and the relative order of mapped inputs is preserved.
 #' @examples
@@ -40,7 +92,8 @@
 #'   gene_to_entrez(c("TP53", "EGFR"))
 #' }
 #' @export
-gene_to_entrez <- function(symbols, species = "human", multi_vals = "first") {
+gene_to_entrez <- function(symbols, species = "human", multi_vals = "first",
+                           alias_fallback = TRUE) {
   sp <- .species(species)
   if (!is.character(symbols) || anyNA(symbols) || any(!nzchar(symbols))) {
     stop("`symbols` must be a character vector of non-missing, non-empty ",
@@ -51,6 +104,10 @@ gene_to_entrez <- function(symbols, species = "human", multi_vals = "first") {
         is.na(multi_vals) || !multi_vals %in% valid_multi_vals) {
     stop("`multi_vals` must be one of \"first\", \"filter\", or \"asNA\" ",
          "so `gene_to_entrez()` can return an integer vector.", call. = FALSE)
+  }
+  if (!is.logical(alias_fallback) || length(alias_fallback) != 1L ||
+        is.na(alias_fallback)) {
+    stop("`alias_fallback` must be TRUE or FALSE.", call. = FALSE)
   }
   if (!length(symbols)) return(integer(0L))
 
@@ -66,18 +123,85 @@ gene_to_entrez <- function(symbols, species = "human", multi_vals = "first") {
   db <- getExportedValue(sp$orgdb, sp$orgdb)
 
   keys <- unique(symbols)
-  mapped_keys <- suppressMessages(AnnotationDbi::mapIds(
-    db,
-    keys = keys,
-    keytype = "SYMBOL",
-    column = "ENTREZID",
-    multiVals = multi_vals
-  ))
-  mapped <- as.character(mapped_keys[match(symbols, names(mapped_keys))])
+  lookup <- .gene_ids_map(db, keys, "SYMBOL", "ENTREZID", multi_vals)
+
+  if (isTRUE(alias_fallback)) {
+    unresolved <- setdiff(keys, names(lookup)[!is.na(lookup)])
+    if (length(unresolved)) {
+      lookup <- c(lookup[!is.na(lookup)],
+                  .gene_to_entrez_alias(db, unresolved, multi_vals))
+    }
+  }
+
+  mapped <- as.character(lookup[match(symbols, names(lookup))])
   missing <- is.na(mapped) | !nzchar(mapped)
   .warn_unmapped_gene_ids(symbols[missing], length(symbols), "symbols")
 
   as.integer(mapped[!missing])
+}
+
+#' Resolve retired gene symbols through the alias table
+#'
+#' Reports every alias it resolves, and names the ambiguous ones separately.
+#' An alias standing for several genes is a judgement the caller should see,
+#' so `multi_vals` decides it and the message records that it was decided.
+#'
+#' @param db An `OrgDb` object.
+#' @param symbols Character vector of symbols that failed the current-symbol
+#'   lookup.
+#' @param multi_vals Ambiguity policy, as in [gene_to_entrez()].
+#' @return A named character vector of resolved Entrez identifiers.
+#' @keywords internal
+.gene_to_entrez_alias <- function(db, symbols, multi_vals) {
+  # Ambiguity has to be detected before it is resolved, so the alias pass asks
+  # for every candidate and applies `multi_vals` here rather than in mapIds().
+  candidates <- tryCatch(
+    suppressMessages(suppressWarnings({
+      known <- AnnotationDbi::keys(db, keytype = "ALIAS")
+      hit_keys <- symbols[symbols %in% known]
+      if (!length(hit_keys)) list() else AnnotationDbi::mapIds(
+        db, keys = hit_keys, keytype = "ALIAS", column = "ENTREZID",
+        multiVals = "list"
+      )
+    })),
+    error = function(e) list()
+  )
+  if (!length(candidates)) {
+    return(stats::setNames(character(0L), character(0L)))
+  }
+
+  candidates <- lapply(candidates, function(x) unique(x[!is.na(x)]))
+  candidates <- candidates[lengths(candidates) > 0L]
+  if (!length(candidates)) {
+    return(stats::setNames(character(0L), character(0L)))
+  }
+
+  ambiguous <- names(candidates)[lengths(candidates) > 1L]
+  resolved <- vapply(candidates, function(x) {
+    if (length(x) == 1L || identical(multi_vals, "first")) {
+      return(as.character(x[[1L]]))
+    }
+    # "filter" and "asNA" both refuse an ambiguous alias; the difference only
+    # shows up in mapIds()'s own return shape, which we do not propagate.
+    NA_character_
+  }, character(1L))
+  resolved <- resolved[!is.na(resolved)]
+
+  if (length(resolved)) {
+    message("gene_to_entrez(): resolved ", length(resolved),
+            " symbol(s) through the alias table: ",
+            paste(utils::head(names(resolved), 20L), collapse = ", "),
+            if (length(resolved) > 20L) ", ..." else "")
+  }
+  if (length(ambiguous)) {
+    message("gene_to_entrez(): ", length(ambiguous),
+            " alias(es) matched more than one gene and were ",
+            if (identical(multi_vals, "first")) "taken as the first match: "
+            else "dropped: ",
+            paste(utils::head(ambiguous, 20L), collapse = ", "),
+            if (length(ambiguous) > 20L) ", ..." else "")
+  }
+  resolved
 }
 
 #' Convert Entrez identifiers to gene symbols
