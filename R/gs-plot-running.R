@@ -70,9 +70,10 @@
 #'   pick its own range. The tick and metric panels are never clamped.
 #' @param gsea_param Numeric exponent passed to
 #'   [fgsea::plotEnrichmentData()]'s `gseaParam`.
-#' @param linewidth Numeric. Weight of the ES curves. Gene ticks are drawn at
+#' @param linewidth Numeric. Weight of the ES curves; `1.6` by default, chosen
+#'   so the figure still reads on a projected slide. Gene ticks are drawn at
 #'   `0.45 *` this, thinner on purpose: at curve weight a dense set merges into
-#'   a solid block. Raise it for a figure that has to read from a distance.
+#'   a solid block. Lower it to about `1.1` for a print-only figure.
 #' @param metric_label Character. Axis label for the ranked-metric panel; name
 #'   the statistic you ranked by (e.g. `"t statistic"`, `"log2 FC"`).
 #' @param title Optional plot title, drawn over the ES panel.
@@ -115,7 +116,7 @@ gs_plot_running <- function(x,
                             panel_heights = c(2.4, 0.7, 0.9),
                             es_ylim = c(-1, 1),
                             gsea_param = 1,
-                            linewidth = 1.1,
+                            linewidth = 1.6,
                             metric_label = "Ranked metric",
                             title = NULL,
                             base_size = 14,
@@ -162,7 +163,7 @@ gs_plot_running <- function(x,
                       panel_heights = c(2.4, 0.7, 0.9),
                       base_theme = NULL,
                       base_size = 14,
-                      linewidth = 1.1,
+                      linewidth = 1.6,
                       ...) {
     legend_position <- match.arg(
       legend_position, c("inside", "right", "bottom", "none")
@@ -287,7 +288,7 @@ gs_plot_running <- function(x,
 #' @keywords internal
 .grs_panel_es <- function(df, pal, set_labels, es_ylim, xlim, y_lab, title,
                           base, show_x, legend_position, legend_pos,
-                          linewidth = 1.1) {
+                          linewidth = 1.6) {
   p <- ggplot(df, aes(x = .data$rank, y = .data$y,
                       colour = .data$pathway_id)) +
     geom_hline(yintercept = 0, colour = "grey60", linewidth = 0.3) +
@@ -320,7 +321,7 @@ gs_plot_running <- function(x,
 #' @return A `ggplot`.
 #' @keywords internal
 .grs_panel_ticks <- function(df, pal, n, xlim, y_lab, base, show_x,
-                             rug_ylabels, linewidth = 1.1) {
+                             rug_ylabels, linewidth = 1.6) {
   # One pathway needs no colour to tell it apart, and black reads better than
   # an arbitrary hue -- the pre-package renderer did the same.
   if (n == 1L) pal <- stats::setNames(rep("black", length(pal)), names(pal))

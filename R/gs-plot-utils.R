@@ -228,6 +228,20 @@
   }
   df$label <- .gs_wrap_label(lbl, width = wrap_width)
 
+  # Carry through any column the result has that the plotting contract does not
+  # use. Nothing here plots them: they ride along so that `gs_save()`'s
+  # same-stem `.tsv` keeps them. That is what makes an enriched result -- a
+  # CoReSh table joined to its GEO titles, accessions and percent of variation
+  # -- arrive beside the figure without the caller passing `data =` by hand.
+  # The axis stays compact and the provenance is one lookup away.
+  extra <- setdiff(names(x), names(df))
+  for (nm in extra) {
+    col <- x[[nm]][match(df$pathway_id, x[["pathway_id"]])]
+    # A list column would break the y-axis factor if it ever reached an
+    # aesthetic; .gs_save_tsv() collapses it on the way out.
+    df[[nm]] <- col
+  }
+
   # `padj == 0` is reachable whenever a p-value underflows -- routine for
   # permutation-free methods and large n -- and `-log10(0)` is `Inf`, which no
   # size or colour scale can map. ggplot2 drops such a point with no warning

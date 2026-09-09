@@ -15,7 +15,7 @@ gs_plot_running(
   panel_heights = c(2.4, 0.7, 0.9),
   es_ylim = c(-1, 1),
   gsea_param = 1,
-  linewidth = 1.1,
+  linewidth = 1.6,
   metric_label = "Ranked metric",
   title = NULL,
   base_size = 14,
@@ -68,9 +68,10 @@ pick its own range. The tick and metric panels are never clamped.}
 \item{gsea_param}{Numeric exponent passed to
 \code{\link[fgsea:plotEnrichmentData]{fgsea::plotEnrichmentData()}}'s \code{gseaParam}.}
 
-\item{linewidth}{Numeric. Weight of the ES curves. Gene ticks are drawn at
+\item{linewidth}{Numeric. Weight of the ES curves; \code{1.6} by default, chosen
+so the figure still reads on a projected slide. Gene ticks are drawn at
 \verb{0.45 *} this, thinner on purpose: at curve weight a dense set merges into
-a solid block. Raise it for a figure that has to read from a distance.}
+a solid block. Lower it to about \code{1.1} for a print-only figure.}
 
 \item{metric_label}{Character. Axis label for the ranked-metric panel; name
 the statistic you ranked by (e.g. \code{"t statistic"}, \code{"log2 FC"}).}

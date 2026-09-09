@@ -16,7 +16,7 @@
   show_x,
   legend_position,
   legend_pos,
-  linewidth = 1.1
+  linewidth = 1.6
 )
 }
 \arguments{

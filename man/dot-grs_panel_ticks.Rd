@@ -13,7 +13,7 @@
   base,
   show_x,
   rug_ylabels,
-  linewidth = 1.1
+  linewidth = 1.6
 )
 }
 \arguments{

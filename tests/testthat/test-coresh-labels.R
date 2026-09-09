@@ -166,3 +166,48 @@ test_that("gs_plot_dot() and gs_plot_heatmap() share the selective rule", {
   )
   expect_true(any(grepl("40.1% var", hm_labs, fixed = TRUE)))
 })
+
+# --- the figure's sidecar keeps the provenance ------------------------------
+# The chosen resolution for CoReSh labelling: a compact metadata axis, with the
+# full GEO title and every other provenance column in the .tsv beside the
+# figure. That only works if extra columns on the result survive into the
+# plotted frame, which is what gs_save() writes.
+
+test_that("extra result columns reach the figure's source table", {
+  res <- cl_result(TRUE)
+  res$gse <- c("GSE1", "GSE2")
+  res$gpl <- c("GPL570", "GPL1261")
+  res$pct_var <- c(40.12, 3.5)
+  res$geo_title <- c(
+    "The role of EGR1 in hypoxia/reoxygenation (H/R) injuries",
+    "Glycolytic shift during West Nile virus infection"
+  )
+
+  p <- gs_plot_bar(res, top_n = 2)
+  src <- attr(p, "gs_source")
+  expect_true(all(c("gse", "gpl", "pct_var", "geo_title") %in% names(src)))
+  # Aligned by pathway_id, not by position: .gs_select_top() reorders rows.
+  i <- match("CORESH_Q_de_A_GSE1", src$pathway_id)
+  expect_identical(src$gse[[i]], "GSE1")
+  expect_identical(src$pct_var[[i]], 40.12)
+  expect_match(src$geo_title[[i]], "^The role of EGR1")
+
+  # And the title is written in full, never truncated, unlike an axis label.
+  dir <- withr::local_tempdir()
+  gs_save(p, file.path(dir, "bar"), formats = character(0L))
+  tsv <- utils::read.delim(file.path(dir, "bar.tsv"), stringsAsFactors = FALSE)
+  expect_true("geo_title" %in% names(tsv))
+  expect_true(any(grepl("reoxygenation", tsv$geo_title, fixed = TRUE)))
+})
+
+test_that("carrying extra columns does not disturb the plotted aesthetics", {
+  bare <- gs_plot_bar(cl_result(TRUE), top_n = 2)
+  rich <- cl_result(TRUE)
+  rich$anything <- c("a", "b")
+  rich$a_list <- list(c("x", "y"), "z")
+  with_extra <- gs_plot_bar(rich, top_n = 2)
+
+  b1 <- ggplot2::ggplot_build(bare)$data
+  b2 <- ggplot2::ggplot_build(with_extra)$data
+  expect_equal(b1, b2)
+})
